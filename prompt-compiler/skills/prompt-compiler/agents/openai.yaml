@@ -1,0 +1,7 @@
+interface:
+  display_name: "Prompt Compiler"
+  short_description: "Structure and review a prompt before running it"
+  default_prompt: "Use $prompt-compiler to turn my request into a clearer prompt, show assumptions and meaningful changes, and wait for my approval."
+
+policy:
+  allow_implicit_invocation: false
