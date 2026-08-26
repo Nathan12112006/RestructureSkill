@@ -26,6 +26,12 @@ whitespace character, blank line, line ending, and trailing space. When a lowerc
 is available it must hash that exact body; `UNAVAILABLE` is allowed when the
 host cannot calculate a hash. Execute no regenerated or reconstructed text.
 
+For the active prompt version, the body submitted from the editable review
+control is the user's exact approval record. It may differ from the initially
+rendered body, but its supplied hash must match that submitted body. An
+explicitly selected earlier version is immutable and must still match the
+stored body for that version.
+
 ## Request revision
 
 ```text
@@ -75,6 +81,20 @@ it; the host must create a new review with a new review ID.
 - Approval means the exact approved body is the operative prompt; it does not
   grant native permission to edit files, send messages, access services, or
   perform destructive actions.
+
+## Execution integrity
+
+Immediately before execution, the host compares the exact operative text with
+the exact approved text. If hashing is available, it computes the execution
+SHA-256 and compares it with `APPROVED_PROMPT_SHA256`. Exact string equality
+is mandatory even when hashing is unavailable; whitespace and line breaks are
+never normalized.
+
+When conversation state is available, retain only these review facts for the
+current workflow: review ID, prompt version, approved hash, and execution
+hash. Do not persist approved prompt content as profile data. If text or hash
+verification fails, return a clear integrity error with no executable prompt,
+do not execute, re-present the review, and require a new approval.
 
 Natural-language options remain valid: `Approve and run`, `Edit: <requested
 changes>`, `Use original`, and `Cancel`. The protocol is an additional exact

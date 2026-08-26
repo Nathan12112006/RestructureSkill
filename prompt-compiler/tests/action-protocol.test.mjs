@@ -7,6 +7,7 @@ import {
   processReviewInput,
   sha256,
   transitionReview,
+  verifyExecutionIntegrity,
 } from '../scripts/action-protocol.mjs';
 
 const reviewId = 'pc-review-opaque-7f3a';
@@ -47,6 +48,71 @@ test('valid approve transitions to approved and returns exact text', () => {
   assert.equal(result.action, ACTIONS.APPROVE_AND_RUN);
   assert.equal(result.operativePrompt, promptV2);
   assert.equal(result.state.status, 'approved');
+  assert.equal(result.state.approvedPrompt, promptV2);
+  assert.equal(result.state.executionHash, sha256(promptV2));
+});
+
+test('active review textarea can be edited and approved verbatim', () => {
+  const edited = `${promptV2}\nKeep the change limited to the authentication module.`;
+  const result = transitionReview(review(), approve(reviewId, 2, edited, sha256(edited)));
+  assert.equal(result.ok, true);
+  assert.equal(result.operativePrompt, edited);
+  assert.equal(result.state.approvedPrompt, edited);
+  assert.equal(result.state.executionHash, sha256(edited));
+});
+
+test('earlier prompt versions remain immutable approval history', () => {
+  const edited = `${promptV1}\nDo not change dependencies.`;
+  const result = transitionReview(review(), approve(reviewId, 1, edited, sha256(edited)));
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'integrity-mismatch');
+  assert.equal(result.operativePrompt, undefined);
+});
+
+test('execution integrity requires exact text and matching hash when available', () => {
+  const exact = 'first line\n\n  second line';
+  const valid = verifyExecutionIntegrity({
+    operativePrompt: exact,
+    approvedPrompt: exact,
+    approvedHash: sha256(exact),
+  });
+  assert.equal(valid.ok, true);
+  assert.equal(valid.operativePrompt, exact);
+  assert.equal(valid.executionHash, sha256(exact));
+
+  const textMismatch = verifyExecutionIntegrity({
+    operativePrompt: `${exact} `,
+    approvedPrompt: exact,
+    approvedHash: sha256(exact),
+  });
+  assert.equal(textMismatch.ok, false);
+  assert.equal(textMismatch.error.code, 'integrity-mismatch');
+  assert.equal(textMismatch.operativePrompt, undefined);
+
+  const hashMismatch = verifyExecutionIntegrity({
+    operativePrompt: exact,
+    approvedPrompt: exact,
+    approvedHash: sha256('different'),
+  });
+  assert.equal(hashMismatch.ok, false);
+  assert.equal(hashMismatch.error.code, 'integrity-mismatch');
+  assert.equal(hashMismatch.operativePrompt, undefined);
+});
+
+test('hash unavailable still requires exact string equality', () => {
+  const exact = 'line one\nline two';
+  assert.equal(verifyExecutionIntegrity({
+    operativePrompt: exact,
+    approvedPrompt: exact,
+    approvedHash: 'UNAVAILABLE',
+  }).ok, true);
+  const mismatch = verifyExecutionIntegrity({
+    operativePrompt: 'line one\nline two\n',
+    approvedPrompt: exact,
+    approvedHash: 'UNAVAILABLE',
+  });
+  assert.equal(mismatch.ok, false);
+  assert.equal(mismatch.error.code, 'integrity-mismatch');
 });
 
 test('mismatched review ID is rejected', () => {
@@ -117,6 +183,8 @@ test('use original selects the verbatim original', () => {
   assert.equal(result.ok, true);
   assert.equal(result.action, ACTIONS.USE_ORIGINAL);
   assert.equal(result.operativePrompt, original);
+  assert.equal(result.state.approvedVersion, 2);
+  assert.equal(result.state.executionHash, sha256(original));
 });
 
 test('cancel stops the review', () => {

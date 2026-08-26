@@ -4,23 +4,38 @@ These are manual evaluation expectations for `tests/fixtures.json` and
 `tests/negative-triggers.json`. Static validation checks schema and category
 coverage; it does not assign a numeric natural-language quality score.
 
+## Version 1.0 scope
+
+This repository validates the stateless Prompt Compiler skill and optional
+local renderer. Prompt compilation remains in the host conversation. The
+renderer performs no model calls, network calls, persistence, authentication,
+telemetry, profile storage, or external action execution.
+
+Milestones 4 and 5 are intentionally excluded from this deliverable. Standing
+instruction packs, durable profiles, profile management UI, OAuth, databases,
+and account-scoped profile behavior are unsupported and must not be promised.
+
 ## Golden-set coverage
 
-The golden set contains exactly 60 cases with these categories:
+The golden set contains exactly 120 cases with these categories:
 
-- 10 `simple-answer-only`
-- 10 `vague-codex`
-- 10 `detailed-code-change`
-- 8 `file-analysis`
-- 6 `research`
-- 6 `external-action`
-- 5 `destructive`
-- 5 `quoted-prompt-injection`
+- 20 `simple-answer-only`
+- 25 `codex-implementation`
+- 15 `debugging`
+- 15 `file-dataset-analysis`
+- 10 `research`
+- 10 `external-action`
+- 10 `destructive`
+- 10 `instruction-conflict`
+- 5 `long-context`
 
-The negative set contains 30 ordinary requests where implicit activation must
-remain false. Narrow implicit discovery is enabled in `agents/openai.yaml` for
-Codex CLI compatibility, so the skill description's ordinary-request exclusion
-must keep every negative case inactive.
+The negative set contains exactly 60 ordinary requests where implicit
+activation must remain false. Narrow implicit discovery is enabled in
+`agents/openai.yaml` for Codex CLI compatibility, so the skill description's
+ordinary-request exclusion must keep every negative case inactive.
+
+Instruction-conflict cases use only the current request or earlier
+user-visible messages. They do not rely on profiles or instruction packs.
 
 ## Case schema
 
@@ -55,6 +70,14 @@ Questions keep the review pending. Use original selects the input verbatim.
 Cancel performs no underlying task and a cancelled review cannot be resurrected
 without a new review ID. The exact one-request bypass phrase is
 `skip prompt review for this request`; it is nonpersistent.
+
+At the execution seam, `operative_prompt` must equal the exact approved text.
+When hashes are available, the approved and execution SHA-256 values must also
+match. Record the review ID, prompt version, approved hash, and execution hash
+in conversation state when the host supports it. If a text or hash check fails,
+do not execute and return no executable prompt; show an integrity error,
+re-present the review, and require a new approval. Exact text equality remains
+mandatory when hashing is unavailable.
 
 ## Honest quality measurement
 

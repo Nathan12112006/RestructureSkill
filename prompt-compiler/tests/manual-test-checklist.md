@@ -3,6 +3,11 @@
 Run this checklist for every case in `fixtures.json` in an explicitly invoked
 Prompt Compiler session.
 
+This checklist targets the stateless 1.0 deliverable: exactly 120 positive
+fixtures and 60 negative implicit-activation cases. Milestones 4 and 5 are
+outside scope; do not test or promise standing-instruction packs, durable
+profiles, profile UI, OAuth, authentication, databases, or profile persistence.
+
 - [ ] The skill activates when explicitly invoked.
 - [ ] The underlying task is not performed during review.
 - [ ] The input is shown verbatim as the review's Original request.
@@ -43,6 +48,12 @@ Prompt Compiler session.
       AGENTS.md, Prompt Compiler profile, or Plugin default.
 - [ ] Approved prompt whitespace and line breaks are preserved exactly.
 - [ ] Approve and run uses the exact prompt shown.
+- [ ] Before execution, `operative_prompt` equals the exact approved text and
+      the approved and execution SHA-256 values match when hashing is available.
+- [ ] Review ID, prompt version, approved hash, and execution hash are recorded
+      in conversation state when the host provides it.
+- [ ] A text or hash mismatch blocks execution, returns no executable prompt,
+      shows an integrity error, re-presents the review, and requires new approval.
 - [ ] Approval treats the exact approved body as the sole operative request and
       does not recompile it before execution.
 - [ ] Edit creates a new version and another review.

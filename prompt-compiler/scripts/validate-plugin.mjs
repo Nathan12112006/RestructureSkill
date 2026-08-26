@@ -24,6 +24,18 @@ const REQUIRED_DOCUMENTS = [
   'docs/milestone-2-audit.md',
   'docs/milestone-2-completion-report.md',
   'docs/milestone-3-completion-report.md',
+  'SECURITY.md',
+  'PRIVACY.md',
+  'TERMS-DRAFT.md',
+  'SUPPORT.md',
+  'CHANGELOG.md',
+  'docs/data-flow.md',
+  'docs/compatibility-matrix.md',
+  'docs/troubleshooting.md',
+  'docs/deployment.md',
+  'docs/disaster-recovery.md',
+  'docs/versioning.md',
+  '.agents/plugins/marketplace.json',
   'tests/expected-behaviors.md',
   'tests/manual-test-checklist.md',
 ];
@@ -70,17 +82,18 @@ const TEXT_EXTENSIONS = new Set([
   '.tsx', '.txt', '.toml', '.yaml', '.yml',
 ]);
 
-const CHECK_COUNT = 48;
+const CHECK_COUNT = 60;
 
-const MILESTONE_2_FIXTURE_COUNTS = Object.freeze({
-  'simple-answer-only': 10,
-  'vague-codex': 10,
-  'detailed-code-change': 10,
-  'file-analysis': 8,
-  research: 6,
-  'external-action': 6,
-  destructive: 5,
-  'quoted-prompt-injection': 5,
+const MILESTONE_6_FIXTURE_COUNTS = Object.freeze({
+  'simple-answer-only': 20,
+  'codex-implementation': 25,
+  debugging: 15,
+  'file-dataset-analysis': 15,
+  research: 10,
+  'external-action': 10,
+  destructive: 10,
+  'instruction-conflict': 10,
+  'long-context': 5,
 });
 
 const FIXTURE_REQUIRED_FIELDS = [
@@ -135,9 +148,9 @@ async function validateTextSafety(root, errors) {
   for (const filePath of files) {
     const relative = path.relative(root, filePath);
     if (relative === 'mcp/dist' || relative.startsWith(`mcp${path.sep}dist${path.sep}`)) continue;
-    // HANDOFF.md is a faithful copy of the specification, which necessarily
-    // contains the literal forbidden-marker examples listed by the spec.
-    if (relative === 'HANDOFF.md') continue;
+    // Handoff artifacts are faithful specifications and intentionally contain
+    // literal forbidden-marker examples. They are not distributable files.
+    if (relative === 'HANDOFF.md' || relative === 'FullMilestoneHANDOFF.md') continue;
     // The validator and its tests contain the marker patterns intentionally so
     // they can detect them in isolated fixtures.
     if (relative === path.join('scripts', 'validate-plugin.mjs') ||
@@ -202,8 +215,11 @@ async function validateDependencies(root, errors) {
 async function validateFixtures(root, errors) {
   const fixturePath = path.join(root, 'tests', 'fixtures.json');
   const fixtures = await readJson(fixturePath);
-  if (!fixtures || !Array.isArray(fixtures.cases)) return;
-  if (fixtures.cases.length < 60) errors.push('tests/fixtures.json must contain at least 60 cases for Milestone 2');
+  if (!fixtures || !Array.isArray(fixtures.cases)) {
+    errors.push('Missing or invalid tests/fixtures.json');
+    return;
+  }
+  if (fixtures.cases.length !== 120) errors.push(`tests/fixtures.json must contain exactly 120 cases for Milestone 6 (found ${fixtures.cases.length})`);
   const categoryCounts = new Map();
   for (const item of fixtures.cases) {
     if (!item || typeof item !== 'object') {
@@ -220,9 +236,12 @@ async function validateFixtures(root, errors) {
     if (item.underlying_task_allowed_during_review !== false) errors.push(`fixture ${item.id ?? '<unknown>'} must disallow underlying task during review`);
     categoryCounts.set(item.category, (categoryCounts.get(item.category) ?? 0) + 1);
   }
-  for (const [category, expected] of Object.entries(MILESTONE_2_FIXTURE_COUNTS)) {
+  for (const [category, expected] of Object.entries(MILESTONE_6_FIXTURE_COUNTS)) {
     const actual = categoryCounts.get(category) ?? 0;
     if (actual !== expected) errors.push(`tests/fixtures.json category ${category} must contain exactly ${expected} cases (found ${actual})`);
+  }
+  for (const category of categoryCounts.keys()) {
+    if (!(category in MILESTONE_6_FIXTURE_COUNTS)) errors.push(`tests/fixtures.json contains unsupported Milestone 6 category ${category}`);
   }
 
   const negativePath = path.join(root, 'tests', 'negative-triggers.json');
@@ -230,7 +249,7 @@ async function validateFixtures(root, errors) {
   if (!negative || !Array.isArray(negative.cases)) {
     errors.push('Missing or invalid tests/negative-triggers.json');
   } else {
-    if (negative.cases.length < 30) errors.push('tests/negative-triggers.json must contain at least 30 cases');
+    if (negative.cases.length !== 60) errors.push(`tests/negative-triggers.json must contain exactly 60 cases (found ${negative.cases.length})`);
     for (const item of negative.cases) {
       if (!item?.id || typeof item.input !== 'string' || item.expected_implicit_activation !== false) {
         errors.push(`negative trigger ${item?.id ?? '<unknown>'} must have input and expected_implicit_activation=false`);
@@ -246,7 +265,7 @@ async function validatePackage(root, errors) {
     return;
   }
   if (packageJson.type !== 'module') errors.push('package.json type must be module');
-  if (packageJson.version !== '0.3.0') errors.push('package.json version must equal 0.3.0 for Milestone 3');
+  if (packageJson.version !== '1.0.0') errors.push('package.json version must equal 1.0.0 for Milestone 6');
   if (packageJson.scripts?.test !== 'node --test') errors.push('package.json must use Node built-in test runner');
   if (packageJson.scripts?.validate !== 'node scripts/validate-plugin.mjs') errors.push('package.json validate script is incorrect');
   for (const section of ['dependencies', 'devDependencies', 'optionalDependencies']) {
@@ -256,7 +275,7 @@ async function validatePackage(root, errors) {
 
 async function validateMcp(root, errors) {
   const manifest = await readJson(path.join(root, '.codex-plugin', 'plugin.json'));
-  if (manifest?.mcpServers !== './.mcp.json') errors.push('Manifest mcpServers must equal ./.mcp.json for Milestone 3');
+  if (manifest?.mcpServers !== './.mcp.json') errors.push('Manifest mcpServers must equal ./.mcp.json for Milestone 6');
   const mcpConfig = await readJson(path.join(root, '.mcp.json'));
   const server = mcpConfig?.mcpServers?.['prompt-compiler'];
   if (!server || server.command !== 'node' || server.cwd !== '.' || JSON.stringify(server.args) !== JSON.stringify(['./mcp/dist/stdio.js'])) {
@@ -264,7 +283,7 @@ async function validateMcp(root, errors) {
   }
   const mcpRoot = path.join(root, 'mcp');
   const mcpPackage = await readJson(path.join(mcpRoot, 'package.json'));
-  if (!mcpPackage || mcpPackage.version !== '0.3.0' || mcpPackage.type !== 'module') errors.push('mcp/package.json must be an ES module at version 0.3.0');
+  if (!mcpPackage || mcpPackage.version !== '1.0.0' || mcpPackage.type !== 'module') errors.push('mcp/package.json must be an ES module at version 1.0.0');
   for (const dependency of ['@modelcontextprotocol/sdk', 'zod']) {
     if (!mcpPackage?.dependencies?.[dependency]) errors.push(`mcp/package.json is missing dependency ${dependency}`);
   }
@@ -297,6 +316,38 @@ async function validateMcp(root, errors) {
   if (/console\.(log|info|debug)\s*\(/.test(source)) errors.push('MCP implementation must not log raw payloads');
 }
 
+async function validateMarketplace(root, errors) {
+  const marketplacePath = path.join(root, '.agents', 'plugins', 'marketplace.json');
+  const marketplace = await readJson(marketplacePath);
+  if (!marketplace || !Array.isArray(marketplace.plugins)) {
+    errors.push('Missing or invalid .agents/plugins/marketplace.json');
+    return;
+  }
+  const plugin = marketplace.plugins.find((entry) => entry?.name === 'prompt-compiler');
+  if (!plugin) {
+    errors.push('Marketplace must include the prompt-compiler plugin');
+    return;
+  }
+  if (plugin.source?.source !== 'local' || plugin.source?.path !== './') {
+    errors.push('Marketplace prompt-compiler entry must point to the repository root');
+  }
+}
+
+async function validateStatelessBoundary(root, errors) {
+  const [readme, architecture] = await Promise.all([
+    readFile(path.join(root, 'README.md'), 'utf8').catch(() => ''),
+    readFile(path.join(root, 'docs', 'architecture.md'), 'utf8').catch(() => ''),
+  ]);
+  const boundaryText = `${readme}\n${architecture}`;
+  if (!/stateless/i.test(boundaryText)) errors.push('Release documentation must state that the renderer is stateless');
+  if (!/no profile storage|no persistent profiles|no profile directory|profiles?[^\n]{0,80}(?:unsupported|not supported|excluded|absent)/i.test(boundaryText)) {
+    errors.push('Release documentation must state that durable profile storage is excluded from this release');
+  }
+  if (!/no model calls|no model API|does not call.*model/i.test(boundaryText)) {
+    errors.push('Release documentation must state that the MCP renderer makes no model calls');
+  }
+}
+
 /**
  * Validate a Prompt Compiler repository without changing it.
  * @param {string} repositoryRoot absolute or relative plugin root
@@ -313,11 +364,9 @@ export async function validateRepository(repositoryRoot) {
   } else {
     if (manifest.name !== 'prompt-compiler') errors.push('Manifest name must equal prompt-compiler');
     if (!semver(manifest.version)) errors.push('Manifest version must be valid semantic version');
-    if (!/^0\.3\.0(?:\+[0-9A-Za-z.-]+)?$/.test(manifest.version)) errors.push('Manifest version must have 0.3.0 base with optional SemVer build metadata');
+    if (!/^1\.0\.0(?:\+[0-9A-Za-z.-]+)?$/.test(manifest.version)) errors.push('Manifest version must have 1.0.0 base with optional SemVer build metadata');
     if (manifest.skills !== './skills/') errors.push('Manifest skills path must equal ./skills/');
     if (!manifest.description || typeof manifest.description !== 'string') errors.push('Manifest description must be non-empty');
-    if (!manifest.author || manifest.author.name !== 'Codex') errors.push('Manifest author.name must equal Codex');
-    if (!manifest.interface || manifest.interface.developerName !== 'Codex') errors.push('Manifest interface.developerName must equal Codex');
     for (const forbiddenField of ['apps', 'hooks', 'homepage', 'repository']) {
       if (forbiddenField in manifest) errors.push(`Manifest must not contain ${forbiddenField}`);
     }
@@ -402,6 +451,8 @@ export async function validateRepository(repositoryRoot) {
   await validateFixtures(root, errors);
   await validatePackage(root, errors);
   await validateMcp(root, errors);
+  await validateMarketplace(root, errors);
+  await validateStatelessBoundary(root, errors);
   await validateTextSafety(root, errors);
   await validateDependencies(root, errors);
   return [...new Set(errors)];

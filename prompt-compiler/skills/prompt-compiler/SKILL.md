@@ -32,6 +32,15 @@ Prompt approval confirms wording and intent. It does not replace native
 confirmation for file changes, external actions, account changes, publication,
 deletion, or other consequential operations.
 
+## Version 1.0 scope
+
+This release keeps the MCP renderer stateless and review-only. It does not
+add standing-instruction packs, durable instruction profiles, profile UI,
+OAuth or other authentication, a database, persistence, telemetry, model
+calls, network calls, or external action execution. Host-native instructions
+remain available when the user supplies them in visible context; unsupported
+Milestone 4 and 5 profile features must not be promised or silently applied.
+
 ## Read references
 
 Read these references when relevant:
@@ -209,6 +218,13 @@ protocol rejects mismatched IDs, stale or unavailable versions, malformed or
 missing bodies, and hash mismatches. Approval executes the exact body shown;
 it never regenerates the prompt. A cancelled review cannot be resurrected
 without creating a new review ID.
+
+At the execution seam, verify that `operativePrompt` equals the exact approved
+text. When hashing is available, also compare the approved and execution
+SHA-256 values. Record the review ID, prompt version, approved hash, and
+execution hash in conversation state when the host provides state. If either
+check fails, do not execute or return an executable prompt: show a clear
+integrity error, present the review again, and require a new approval.
 
 ## Output
 

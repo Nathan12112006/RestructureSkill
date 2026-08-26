@@ -78,6 +78,17 @@ the active review history. A stale or unavailable version is rejected. The
 exact text shown for that version is authoritative; the canonical protocol may
 also include a lowercase SHA-256 or `UNAVAILABLE`.
 
+At the execution seam, compare the exact operative prompt with the exact text
+approved by the user. If an approved hash is available, compare it with the
+execution SHA-256 as well. Record the review ID, prompt version, approved hash,
+and execution hash in conversation state when the host supports it. Hashing is
+optional, but exact string equality is not.
+
+If either comparison fails, do not execute and do not return an executable
+prompt. Show a clear integrity error, present the review again, and require a
+new approval. This recovery is transient conversation state and is not durable
+profile storage.
+
 Canonical action envelopes and malformed-action rules are defined in
 `action-protocol.md`. They supplement, and do not replace, the natural-language
 decisions above.

@@ -116,36 +116,49 @@ test('Codex CLI discovery remains enabled with a narrow activation guard', async
   assert.match(skill, /Do not use this skill merely because a user asks an ordinary question without requesting prompt compilation\./);
 });
 
-test('faithful HANDOFF marker examples do not trigger false positives', async () => {
-  assert.deepEqual(await withFixture(), []);
+test('handoff marker examples are excluded while distributable markers fail', async () => {
+  const handoffErrors = await withFixture(async (root) => {
+    await writeFile(path.join(root, 'FullMilestoneHANDOFF.md'), 'YOUR_API_KEY and TODO_AUTHOR are specification examples.', 'utf8');
+  });
+  assert.deepEqual(handoffErrors, []);
+
+  const distributableErrors = await withFixture(async (root) => {
+    await writeFile(path.join(root, 'README.md'), 'YOUR_API_KEY', 'utf8');
+  });
+  assert.match(distributableErrors.join('\n'), /placeholder marker.*README\.md/);
 });
 
-test('Milestone 3 package version is enforced', async () => {
+test('Milestone 6 package version is enforced', async () => {
   const errors = await withFixture(async (root) => {
     const file = path.join(root, 'package.json');
     const packageJson = JSON.parse(await readFile(file, 'utf8'));
-    packageJson.version = '0.1.0';
+    packageJson.version = '0.2.0';
     await writeFile(file, JSON.stringify(packageJson), 'utf8');
   });
-  assert.match(errors.join('\n'), /package\.json version.*0\.3\.0/);
+  assert.match(errors.join('\n'), /package\.json version.*1\.0\.0/);
 });
 
-test('plugin manifest accepts the Codex cachebuster build metadata', async () => {
+test('plugin manifest accepts the 1.0 Codex cachebuster build metadata', async () => {
   const errors = await withFixture(async (root) => {
     const file = path.join(root, '.codex-plugin', 'plugin.json');
     const manifest = JSON.parse(await readFile(file, 'utf8'));
-    manifest.version = '0.3.0+codex.local-test';
+    manifest.version = '1.0.0+codex.local-test';
     await writeFile(file, JSON.stringify(manifest), 'utf8');
   });
   assert.deepEqual(errors, []);
 });
 
-test('Milestone 2 negative trigger corpus remains required', async () => {
+test('Milestone 6 negative trigger corpus remains required', async () => {
   const errors = await withFixture((root) => remove(path.join(root, 'tests', 'negative-triggers.json')));
   assert.match(errors.join('\n'), /negative-triggers\.json/);
 });
 
-test('Milestone 2 fixture schema is enforced', async () => {
+test('Milestone 6 fixture corpus remains required', async () => {
+  const errors = await withFixture((root) => remove(path.join(root, 'tests', 'fixtures.json')));
+  assert.match(errors.join('\n'), /Missing or invalid tests\/fixtures\.json/);
+});
+
+test('Milestone 6 fixture schema is enforced', async () => {
   const errors = await withFixture(async (root) => {
     const file = path.join(root, 'tests', 'fixtures.json');
     const fixtures = JSON.parse(await readFile(file, 'utf8'));
@@ -155,7 +168,7 @@ test('Milestone 2 fixture schema is enforced', async () => {
   assert.match(errors.join('\n'), /missing must_include_meaning/);
 });
 
-test('Milestone 2 protocol and template markers are enforced', async () => {
+test('Milestone 6 protocol and template markers are enforced', async () => {
   const errors = await withFixture(async (root) => {
     const file = path.join(root, 'skills', 'prompt-compiler', 'references', 'action-protocol.md');
     const protocol = await readFile(file, 'utf8');
@@ -222,4 +235,35 @@ test('renderer-first review contract gates fallback and stops after one render',
   assert.match(normalizedSkill, /render_prompt_review .* exactly once .* before .* full text fallback .* assistant-authored review/i);
   assert.match(normalizedSkill, /render_prompt_review .* unavailable or fails .* complete text fallback/i);
   assert.match(normalizedSkill, /after .* render_prompt_review .* returns .* stop immediately/i);
+});
+
+test('Milestone 6 evaluation corpora have exact required counts', async () => {
+  const fixtures = JSON.parse(await readFile(path.join(repositoryRoot, 'tests', 'fixtures.json'), 'utf8'));
+  const counts = fixtures.cases.reduce((groups, item) => {
+    (groups[item.category] ??= []).push(item);
+    return groups;
+  }, {});
+  assert.equal(fixtures.cases.length, 120);
+  assert.deepEqual(Object.fromEntries(Object.entries(counts).map(([category, cases]) => [category, cases.length])), {
+    'simple-answer-only': 20,
+    'codex-implementation': 25,
+    debugging: 15,
+    'file-dataset-analysis': 15,
+    research: 10,
+    'external-action': 10,
+    destructive: 10,
+    'instruction-conflict': 10,
+    'long-context': 5,
+  });
+  const negative = JSON.parse(await readFile(path.join(repositoryRoot, 'tests', 'negative-triggers.json'), 'utf8'));
+  assert.equal(negative.cases.length, 60);
+  assert.ok(negative.cases.every((item) => item.expected_implicit_activation === false));
+});
+
+test('Milestone 6 release artifacts and marketplace entry are required', async () => {
+  const errors = await withFixture((root) => remove(path.join(root, '.agents', 'plugins', 'marketplace.json')));
+  assert.match(errors.join('\n'), /marketplace\.json/);
+
+  const missingReleaseDoc = await withFixture((root) => remove(path.join(root, 'SECURITY.md')));
+  assert.match(missingReleaseDoc.join('\n'), /Missing SECURITY\.md/);
 });

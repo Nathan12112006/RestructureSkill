@@ -1,151 +1,167 @@
 # Prompt Compiler
 
-Prompt Compiler is a skill plugin with an optional MCP review renderer that
-turns an ordinary request into a clear, target-specific ChatGPT or Codex prompt. It preserves explicit intent
-and constraints, shows assumptions and meaningful changes, classifies
-operational impact, and waits for semantic approval before the host performs
-the underlying task.
+Prompt Compiler is a stateless ChatGPT and Codex plugin that turns an ordinary request
+into a clearer, target-specific prompt, shows the review, and waits for a
+semantic decision before the host performs the task.
 
-## Why it stays in the conversation
+Version 1.0.0 includes:
 
-Milestones 1 and 2 keep compilation inside the current conversation. The current
-ChatGPT or Codex model performs the restructuring using context already
-available in that conversation, so the plugin does not need a second model
-request, remote backend, transcript upload, or database.
+- One focused Prompt Compiler skill for ChatGPT and Codex.
+- An optional local MCP Apps renderer with an editable review card.
+- A complete text review when the renderer or custom UI is unavailable.
+- Exact approval, revision, original-request, and cancellation actions.
+- Numbered sections for non-trivial optimized prompts, so the result stays
+  readable and copyable.
 
-## API-key requirement
+The repository does not provide global middleware. A user must invoke the
+skill explicitly, or manually add one of the generated host-instruction
+snippets to a selected project or repository.
 
-Milestone 2 does not require an OpenAI API key. This package does not call the
-OpenAI API or any other model-provider API, and it does not claim that a
-ChatGPT subscription includes API usage.
+## Important reminders
+
+This version has only been tests on the ChatGPT App. It likely works with Codex CLI but does not work on codex extensions. 
+
+## Important boundaries
+
+The current host model performs compilation. It uses only relevant,
+user-visible context already available in the conversation. No separate model
+request is made and no user-provided OpenAI API key is required.
+
+The optional MCP process validates a structured review, renders the card, and
+returns the complete text fallback. It is read-only, closed-world, and
+stateless: it makes no model or network calls, does not retain review
+payloads, does not log raw prompts, and does not execute the underlying task.
+The bundled server has no production service, database, or account system.
+There is no profile storage.
+
+Prompt approval confirms wording and intent. Native ChatGPT, Codex, connector,
+filesystem, network, and destructive-operation confirmations remain separate.
+
+## Use it explicitly
+
+In a supported ChatGPT host, invoke the skill from the plugin picker or with:
+
+    @Prompt Compiler
+
+    Fix the login issue and do not over-engineer it.
+
+In Codex, use the installed skill:
+
+    $prompt-compiler
+
+    Fix the login issue and do not over-engineer it.
+
+The review presents the original request verbatim, the optimized prompt,
+assumptions, meaningful changes, applied user-visible instructions,
+operational impact, a review ID, and a positive prompt version. It then stops.
+
+Choose one action in a new message:
+
+- Approve and run executes the exact optimized text most recently shown.
+- Edit: <requested changes> creates a new version and review.
+- Use original uses the original request verbatim.
+- Cancel stops without performing the underlying task.
+
+Questions and edits are not approval. Stale or mismatched action envelopes
+are rejected. Whitespace and line breaks in approved text are preserved.
+
+For one request only, the exact phrase below bypasses Prompt Compiler review.
+It does not change later requests:
+
+    skip prompt review for this request
 
 ## Installation
 
-This repository has not been fully host-certified as part of this repository test
-run. The steps below separate documented platform behavior from actions that
-still require manual verification because installation surfaces can change.
+### Codex CLI from this Git repository
 
-### Confirmed current references
+Clone or check out this repository, including its prebuilt mcp/dist
+artifacts. Register the repository root as a local marketplace source with
+the Codex CLI, then install the entry named prompt-compiler:
 
-- [ChatGPT plugins documentation](https://learn.chatgpt.com/docs/plugins)
-  describes the Plugins tab in ChatGPT web/desktop for browsing public plugins.
-- [OpenAI plugin build documentation](https://developers.openai.com/plugins/build/plugins)
-  documents local plugin packaging and local marketplace locations.
+    codex plugin marketplace add <checkout-path>
+    codex plugin add prompt-compiler@prompt-compiler-repo
 
-### Codex
+Use the CLI's marketplace/list commands to confirm the entry if your installed
+CLI uses a different local-marketplace prompt. Start a new Codex session after
+installation so the skill and MCP tool are loaded. The local marketplace entry
+uses a relative path to this repository root; it does not download a
+hosted service.
 
-Plugins are supported in Codex inside the ChatGPT desktop app and through the
-Codex CLI. In the CLI, use `/plugins` to browse or enable plugins from a
-configured marketplace. The Codex IDE extension does not support plugins, so
-the Prompt Compiler skill and MCP review card cannot appear there.
+### Codex in the ChatGPT desktop app
 
-After installing or updating the plugin, restart the relevant app and start a
-new Codex chat or CLI session so its bundled skill and MCP tools are loaded.
-This repository intentionally does not install itself. For a non-default local
-marketplace, manually verify the current documentation and configure that
-marketplace before installing from it; the default personal marketplace is
-discovered automatically and should not be added again.
+Use the app's local marketplace/plugin installation flow and select this
+repository root. Install Prompt Compiler,
+restart the app if requested, and start a new conversation. The desktop app
+may expose the editable card when MCP Apps are supported; the text review
+remains authoritative.
 
-### ChatGPT
+### ChatGPT desktop
 
-Manually verify the current ChatGPT Plugins tab and plugin availability before
-attempting installation. This skill package alone is not evidence that the
-plugin has been installed, listed, or exercised in ChatGPT.
+Use the ChatGPT desktop app's local plugin/marketplace installation flow and
+select this repository's marketplace file. The plugin must be installed by
+the host before it can be invoked. ChatGPT web availability and custom UI
+support are not certified by this repository; use the text workflow when the
+plugin picker or card is unavailable.
 
-## Usage
+The Codex IDE extension is untested for this package. This repository makes no
+claim that its plugin picker, MCP server, or inline card is available there.
+Use Codex CLI or Codex in the ChatGPT desktop app for the tested installation path.
 
-Explicit invocation remains the recommended workflow:
+## Optional automatic setup
 
-```text
-@Prompt Compiler
+Automatic selected-context mode is host configuration, not global interception.
+Ask Prompt Compiler to generate the relevant block, then review and paste it
+yourself:
 
-Fix the login thing and make sure it works without changing too much.
-```
+- ChatGPT Project: paste the generated Project Instructions block into that
+  project's settings.
+- Codex repository: paste the generated marked section into the repository's
+  AGENTS.md, review the diff, and commit it with the repository if desired.
 
-In Codex, use:
+The plugin does not write either setting or claim that the setting changed.
+Keep any setup scoped to the selected project or repository. A per-request
+skip prompt review for this request bypass remains non-persistent.
 
-```text
-$prompt-compiler
+## Text-only fallback
 
-Fix the login thing and make sure it works without changing too much.
-```
+If MCP Apps, the UI resource, JavaScript, or the host bridge is unavailable,
+the host emits the complete text review and waits for the same actions. In
+text-only mode no review payload is sent to the MCP server. This path does not
+execute the task automatically.
 
-The skill selects ChatGPT, Codex, or Current host; chooses Minimal, Balanced,
-or Strict mode; presents the original request verbatim; and shows the
-optimized prompt in a copyable plain-text block.
+## Development and release checks
 
-## Approval behavior
+Requirements: Node.js 20 or newer.
 
-The review always stops before the underlying task. Reply with one of:
+From the repository root:
 
-- `Approve and run` — execute the exact optimized prompt most recently shown.
-- `Edit: <requested changes>` — create a new prompt version and review it
-  again; editing is not approval.
-- `Use original` — use the original request verbatim, with native host safety
-  and tool confirmations still applying.
-- `Cancel` — stop without performing the underlying task.
+    npm install
+    npm test
+    npm run validate
 
-Semantic approval confirms wording and intent. Native confirmations may still
-be required before files, accounts, external services, or destructive
-operations are changed.
+Build and test the optional bundled renderer:
 
-Every review also has an opaque review ID and prompt version. Hosts that need
-an exact text action can use the four envelopes in
-`skills/prompt-compiler/references/action-protocol.md`; natural-language
-options remain supported. Approval executes the exact approved body, including
-whitespace, and stale or mismatched actions are rejected.
+    cd mcp
+    npm install
+    npm test
 
-## Selected-context and automatic-mode templates
+The MCP build produces standalone files under mcp/dist; the local .mcp.json
+launches mcp/dist/stdio.js. Do not delete those artifacts from a Git release
+unless you also provide an equivalent build step for consumers.
 
-The context policy permits only relevant, user-visible details and requires
-one of six exact provenance labels. The generated ChatGPT Project Instructions
-and Codex `AGENTS.md` snippets are returned for the user to paste or use; this
-plugin never writes those host settings automatically. The exact one-request
-bypass phrase is `skip prompt review for this request`, and it is nonpersistent.
+## Scope and limitations
 
-## Limitations
+- This is a local/repository marketplace package, not a hosted production
+  service or public directory listing.
+- ChatGPT web, ChatGPT desktop custom UI, and the Codex IDE extension remain
+  untested in this repository's 1.0 release checks.
+- Codex CLI 0.149.0 discovery, one render_prompt_review call, structured
+  review output, and stopping before execution were exercised on the installed
+  1.0.0+codex.20260826063251 build. No approval was sent.
+- The CLI does not itself render an inline card; use its text fallback.
+- Native host permissions and confirmations still govern file, network,
+  account, external, and destructive operations.
 
-- It is not global middleware for every message.
-- Narrow implicit discovery is enabled as a compatibility workaround for
-  current Codex CLI explicit-only skill resolution. The skill description
-  still restricts activation to requests that ask for prompt compilation,
-  structuring, optimization, or review.
-- Plugins are unavailable in the Codex IDE extension; use Codex in the ChatGPT
-  desktop app or Codex CLI instead.
-- The optional Milestone 3 MCP UI is not guaranteed to be available; the text-only review is always the fallback.
-- There is no persistent instruction storage yet.
-- Automatic invocation is not guaranteed.
-- There is no direct Project-memory or Project-Instructions integration; setup
-  snippets require manual paste/use.
-- Host safety and tool approvals still apply.
-- Codex CLI discovery and approval stopping have been exercised locally;
-  ChatGPT and Codex IDE host integration still require manual verification.
-
-## Development
-
-From the plugin root:
-
-```bash
-npm test
-npm run validate
-```
-
-From `mcp/`, build and test the optional bundled MCP renderer:
-
-```bash
-npm install
-npm test
-```
-
-The tests use Node's built-in test runner and temporary repository copies. The
-validator uses Node built-ins only and checks the package structure, content
-safety, forbidden directories, v0.3.0 fixture counts and fields, negative
-triggers, protocol/template markers, and model-provider dependency markers.
-
-## Roadmap
-
-Milestone 3 adds an optional MCP render interface with editable approval
-controls. The standalone `mcp/dist/stdio.js` runtime needs no installed
-`node_modules` after build; `.mcp.json` launches it locally. The text-only
-workflow remains available when MCP/UI is unavailable. See
-`docs/milestone-3-completion-report.md` for automated and unmeasured host gates.
+See docs/architecture.md, docs/data-flow.md,
+docs/compatibility-matrix.md, docs/troubleshooting.md, and
+docs/deployment.md for the release boundary and operational guidance.

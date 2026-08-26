@@ -15,6 +15,25 @@ export function sha256(text) {
   return createHash('sha256').update(text, 'utf8').digest('hex');
 }
 
+export function verifyExecutionIntegrity({ operativePrompt, approvedPrompt, approvedHash = 'UNAVAILABLE' } = {}) {
+  if (typeof operativePrompt !== 'string' || typeof approvedPrompt !== 'string') {
+    return failure('integrity-mismatch', 'Exact approved prompt text is unavailable; execution is blocked.');
+  }
+  if (operativePrompt !== approvedPrompt) {
+    return failure('integrity-mismatch', 'The operative prompt differs from the exact approved prompt; execution is blocked.');
+  }
+  let executionHash;
+  try {
+    executionHash = sha256(operativePrompt);
+  } catch {
+    executionHash = 'UNAVAILABLE';
+  }
+  if (approvedHash !== 'UNAVAILABLE' && approvedHash !== executionHash) {
+    return failure('integrity-mismatch', 'The approved prompt hash differs from the execution hash; execution is blocked.');
+  }
+  return { ok: true, operativePrompt, approvedPrompt, approvedHash, executionHash };
+}
+
 function failure(code, message) {
   return { ok: false, error: { code, message } };
 }
@@ -139,10 +158,28 @@ export function transitionReview(state, input) {
     if (typeof expected !== 'string' || parsed.promptVersion > state.activeVersion) {
       return failureWithState('stale-version', 'Only the active prompt version or an explicitly available earlier version may be approved.', state);
     }
-    if (expected !== parsed.prompt) return failureWithState('prompt-mismatch', 'Approved prompt text does not match the reviewed version.', state);
-    if (parsed.hash !== 'UNAVAILABLE' && parsed.hash !== sha256(parsed.prompt)) return failureWithState('hash-mismatch', 'Approved prompt hash does not match the exact body.', state);
-    const next = { ...state, status: 'approved', approvedVersion: parsed.promptVersion, operativePrompt: parsed.prompt, approvedHash: parsed.hash };
-    return { ok: true, action: parsed.action, operativePrompt: parsed.prompt, state: next };
+    // The active review textarea is user-editable. Its exact body becomes the
+    // approval record for the active version. Earlier versions are immutable
+    // history and therefore still require their stored exact body.
+    if (parsed.promptVersion < state.activeVersion && expected !== parsed.prompt) {
+      return failureWithState('integrity-mismatch', 'The earlier prompt version does not match its stored approved text; execution is blocked.', state);
+    }
+    const integrity = verifyExecutionIntegrity({
+      operativePrompt: parsed.prompt,
+      approvedPrompt: parsed.prompt,
+      approvedHash: parsed.hash,
+    });
+    if (!integrity.ok) return failureWithState(integrity.error.code, integrity.error.message, state);
+    const next = {
+      ...state,
+      status: 'approved',
+      approvedVersion: parsed.promptVersion,
+      approvedPrompt: integrity.approvedPrompt,
+      operativePrompt: integrity.operativePrompt,
+      approvedHash: integrity.approvedHash,
+      executionHash: integrity.executionHash,
+    };
+    return { ok: true, action: parsed.action, operativePrompt: integrity.operativePrompt, executionHash: integrity.executionHash, state: next };
   }
 
   if (parsed.action === ACTIONS.REQUEST_REVISION) {
@@ -153,9 +190,22 @@ export function transitionReview(state, input) {
 
   if (parsed.action === ACTIONS.USE_ORIGINAL) {
     if (typeof state.originalRequest !== 'string') return failureWithState('original-unavailable', 'The original request is unavailable.', state);
-    if (parsed.hash !== 'UNAVAILABLE' && parsed.hash !== sha256(state.originalRequest)) return failureWithState('hash-mismatch', 'Original request hash does not match the verbatim request.', state);
-    const next = { ...state, status: 'original-selected', operativePrompt: state.originalRequest };
-    return { ok: true, action: parsed.action, operativePrompt: state.originalRequest, state: next };
+    const integrity = verifyExecutionIntegrity({
+      operativePrompt: state.originalRequest,
+      approvedPrompt: state.originalRequest,
+      approvedHash: parsed.hash,
+    });
+    if (!integrity.ok) return failureWithState(integrity.error.code, integrity.error.message, state);
+    const next = {
+      ...state,
+      status: 'original-selected',
+      approvedVersion: state.activeVersion,
+      approvedPrompt: integrity.approvedPrompt,
+      operativePrompt: integrity.operativePrompt,
+      approvedHash: integrity.approvedHash,
+      executionHash: integrity.executionHash,
+    };
+    return { ok: true, action: parsed.action, operativePrompt: integrity.operativePrompt, executionHash: integrity.executionHash, state: next };
   }
 
   const next = { ...state, status: 'cancelled' };

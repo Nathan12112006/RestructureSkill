@@ -1,6 +1,6 @@
 {
   "name": "@prompt-compiler/mcp",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Closed-world MCP Apps renderer for Prompt Compiler reviews.",

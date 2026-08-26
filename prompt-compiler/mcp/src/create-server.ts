@@ -4,7 +4,7 @@ import { conciseError } from './errors.js';
 import reviewHtml from '../public/prompt-review.html';
 
 export const SERVER_NAME = 'prompt-compiler';
-export const SERVER_VERSION = '0.3.0';
+export const SERVER_VERSION = '1.0.0';
 
 export { renderPromptReview, UI_RESOURCE_URI, UI_RESOURCE_MIME } from './tools/render-prompt-review.js';
 export { actionMessage, renderTextFallback, promptHash } from './review-fallback.js';

@@ -31,6 +31,13 @@ one-sentence prompts may stay simple. The fenced text is authoritative and must
 be preserved byte-for-byte when it is edited, hashed, or approved; readability
 formatting must never normalize or rewrite its contents.
 
+When a host records review state, it may retain the review ID, prompt version,
+approved SHA-256, and execution SHA-256 for this workflow. Before execution,
+the host must verify exact approved-text equality and, when available, hash
+equality. If either check fails, it must show an integrity error, re-present
+the review, and require a new approval; it must not expose an executable
+prompt. If hashing is unavailable, exact text equality remains mandatory.
+
 A section heading followed by an unnumbered prose line fails the final
 self-check. Rewrite that line as a numbered item without changing meaning
 before presenting the review.

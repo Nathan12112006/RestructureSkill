@@ -1,9 +1,9 @@
 {
   "name": "prompt-compiler",
-  "version": "0.3.0+codex.20260826053138",
+  "version": "1.0.0",
   "description": "Turn ordinary requests into clear ChatGPT or Codex prompts, show assumptions and meaningful changes, and require approval before execution.",
   "author": {
-    "name": "Codex"
+    "name": "Prompt Compiler contributors"
   },
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
@@ -11,7 +11,7 @@
     "displayName": "Prompt Compiler",
     "shortDescription": "Structure and review a prompt before running it.",
     "longDescription": "Turn ordinary requests into clear ChatGPT or Codex prompts, show assumptions and meaningful changes, and require approval before execution.",
-    "developerName": "Codex",
+    "developerName": "Prompt Compiler contributors",
     "category": "Productivity",
     "capabilities": [],
     "defaultPrompt": "Turn my request into a clearer prompt, show assumptions and meaningful changes, and wait for my approval."
