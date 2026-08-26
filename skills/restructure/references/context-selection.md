@@ -1,6 +1,6 @@
 # Context-selection policy
 
-Prompt Compiler may select context already visible to the host only when it
+Restructure may select context already visible to the host only when it
 changes how the request should be executed. Selection is narrow and should be
 explained in the review; the compiler must not copy the whole conversation.
 
@@ -46,7 +46,7 @@ Current request
 Earlier user message
 ChatGPT Project Instructions
 Codex AGENTS.md
-Prompt Compiler profile
+Restructure profile
 Plugin default
 ```
 

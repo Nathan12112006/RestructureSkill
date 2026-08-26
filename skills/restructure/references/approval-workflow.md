@@ -30,7 +30,7 @@ buttons, or leaving an approval control available is not approval.
 
 An empty request receives:
 
-`I need the request you want structured. Add it after invoking Prompt Compiler.`
+`I need the request you want structured. Add it after invoking Restructure.`
 
 ## Decisions
 
@@ -96,7 +96,7 @@ decisions above.
 ## Semantic versus operational approval
 
 Semantic approval answers whether the wording represents user intent. Prompt
-Compiler owns that step. Operational approval answers whether a host or tool
+Restructure owns that step. Operational approval answers whether a host or tool
 may edit files, install a dependency, access the network, send an email, push a
 branch, or delete data. Those confirmations remain native to ChatGPT, Codex,
 and their tools.

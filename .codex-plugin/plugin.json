@@ -1,17 +1,17 @@
 {
-  "name": "prompt-compiler",
+  "name": "restructure",
   "version": "1.0.0",
   "description": "Turn ordinary requests into clear ChatGPT or Codex prompts, show assumptions and meaningful changes, and require approval before execution.",
   "author": {
-    "name": "Prompt Compiler contributors"
+    "name": "Restructure contributors"
   },
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
-    "displayName": "Prompt Compiler",
+    "displayName": "Restructure",
     "shortDescription": "Structure and review a prompt before running it.",
     "longDescription": "Turn ordinary requests into clear ChatGPT or Codex prompts, show assumptions and meaningful changes, and require approval before execution.",
-    "developerName": "Prompt Compiler contributors",
+    "developerName": "Restructure contributors",
     "category": "Productivity",
     "capabilities": [],
     "defaultPrompt": "Turn my request into a clearer prompt, show assumptions and meaningful changes, and wait for my approval."

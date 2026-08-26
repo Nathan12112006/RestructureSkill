@@ -1,6 +1,6 @@
 # Support
 
-Prompt Compiler is a local/repository marketplace package. Support starts
+Restructure is a local/repository marketplace package. Support starts
 with the text-only workflow because it works even when the optional MCP card
 cannot load.
 
@@ -8,7 +8,7 @@ cannot load.
 
 Record:
 
-- Prompt Compiler release and host surface.
+- Restructure release and host surface.
 - Operating system and host version, if known.
 - Whether explicit skill invocation worked.
 - Whether the text review appeared.

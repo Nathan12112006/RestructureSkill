@@ -1,12 +1,12 @@
-# Prompt Compiler
+# Restructure
 
-Prompt Compiler is a stateless ChatGPT and Codex plugin that turns an ordinary request
+Restructure is a stateless ChatGPT and Codex plugin that turns an ordinary request
 into a clearer, target-specific prompt, shows the review, and waits for a
 semantic decision before the host performs the task.
 
 Version 1.0.0 includes:
 
-- One focused Prompt Compiler skill for ChatGPT and Codex.
+- One focused Restructure skill for ChatGPT and Codex.
 - An optional local MCP Apps renderer with an editable review card.
 - A complete text review when the renderer or custom UI is unavailable.
 - Exact approval, revision, original-request, and cancellation actions.
@@ -41,13 +41,13 @@ filesystem, network, and destructive-operation confirmations remain separate.
 
 In a supported ChatGPT host, invoke the skill from the plugin picker or with:
 
-    @Prompt Compiler
+    @Restructure
 
     Fix the login issue and do not over-engineer it.
 
 In Codex, use the installed skill:
 
-    $prompt-compiler
+    $restructure
 
     Fix the login issue and do not over-engineer it.
 
@@ -65,7 +65,7 @@ Choose one action in a new message:
 Questions and edits are not approval. Stale or mismatched action envelopes
 are rejected. Whitespace and line breaks in approved text are preserved.
 
-For one request only, the exact phrase below bypasses Prompt Compiler review.
+For one request only, the exact phrase below bypasses Restructure review.
 It does not change later requests:
 
     skip prompt review for this request
@@ -76,10 +76,10 @@ It does not change later requests:
 
 Clone or check out this repository, including its prebuilt mcp/dist
 artifacts. Register the repository root as a local marketplace source with
-the Codex CLI, then install the entry named prompt-compiler:
+the Codex CLI, then install the entry named restructure:
 
     codex plugin marketplace add <checkout-path>
-    codex plugin add prompt-compiler@prompt-compiler-repo
+    codex plugin add restructure@restructure-repo
 
 Use the CLI's marketplace/list commands to confirm the entry if your installed
 CLI uses a different local-marketplace prompt. Start a new Codex session after
@@ -90,7 +90,7 @@ hosted service.
 ### Codex in the ChatGPT desktop app
 
 Use the app's local marketplace/plugin installation flow and select this
-repository root. Install Prompt Compiler,
+repository root. Install Restructure,
 restart the app if requested, and start a new conversation. The desktop app
 may expose the editable card when MCP Apps are supported; the text review
 remains authoritative.
@@ -110,7 +110,7 @@ Use Codex CLI or Codex in the ChatGPT desktop app for the tested installation pa
 ## Optional automatic setup
 
 Automatic selected-context mode is host configuration, not global interception.
-Ask Prompt Compiler to generate the relevant block, then review and paste it
+Ask the Restructure skill to generate the relevant block, then review and paste it
 yourself:
 
 - ChatGPT Project: paste the generated Project Instructions block into that

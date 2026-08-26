@@ -1,10 +1,10 @@
 // src/review-fallback.ts
 import { createHash } from "node:crypto";
 var ACTIONS = Object.freeze({
-  approve: "PROMPT_COMPILER_ACTION: APPROVE_AND_RUN",
-  revision: "PROMPT_COMPILER_ACTION: REQUEST_REVISION",
-  original: "PROMPT_COMPILER_ACTION: USE_ORIGINAL",
-  cancel: "PROMPT_COMPILER_ACTION: CANCEL"
+  approve: "RESTRUCTURE_ACTION: APPROVE_AND_RUN",
+  revision: "RESTRUCTURE_ACTION: REQUEST_REVISION",
+  original: "RESTRUCTURE_ACTION: USE_ORIGINAL",
+  cancel: "RESTRUCTURE_ACTION: CANCEL"
 });
 function promptHash(prompt) {
   return createHash("sha256").update(prompt, "utf8").digest("hex");
@@ -23,7 +23,7 @@ function renderTextFallback(review) {
   const warnings = review.warnings.length ? review.warnings.map((item) => `- ${item}`).join("\n") : "(none)";
   const changes = review.meaningful_changes.length ? review.meaningful_changes.map((item) => `- ${item}`).join("\n") : "(none)";
   return [
-    "PROMPT COMPILER REVIEW",
+    "RESTRUCTURE REVIEW",
     `Review ID: ${review.review_id}`,
     `Prompt version: ${review.version}`,
     `Target: ${review.target}`,

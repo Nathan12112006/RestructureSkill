@@ -2,7 +2,7 @@
 
 ## Product
 
-This repository contains the Prompt Compiler skill and optional MCP Apps
+This repository contains the Restructure skill and optional MCP Apps
 plugin for ChatGPT and Codex.
 
 ## Current milestone

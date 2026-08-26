@@ -12,7 +12,7 @@ the exact prompt text associated with each available version.
 ## Approve and run
 
 ```text
-PROMPT_COMPILER_ACTION: APPROVE_AND_RUN
+RESTRUCTURE_ACTION: APPROVE_AND_RUN
 REVIEW_ID: <opaque-id>
 PROMPT_VERSION: <positive integer>
 APPROVED_PROMPT_SHA256: <lowercase hash or UNAVAILABLE>
@@ -35,7 +35,7 @@ stored body for that version.
 ## Request revision
 
 ```text
-PROMPT_COMPILER_ACTION: REQUEST_REVISION
+RESTRUCTURE_ACTION: REQUEST_REVISION
 REVIEW_ID: <opaque-id>
 BASE_PROMPT_VERSION: <positive integer>
 REVISION_REQUEST_BEGIN
@@ -50,7 +50,7 @@ version.
 ## Use original
 
 ```text
-PROMPT_COMPILER_ACTION: USE_ORIGINAL
+RESTRUCTURE_ACTION: USE_ORIGINAL
 REVIEW_ID: <opaque-id>
 ORIGINAL_REQUEST_SHA256: <lowercase hash or UNAVAILABLE>
 ```
@@ -61,7 +61,7 @@ original request exactly.
 ## Cancel
 
 ```text
-PROMPT_COMPILER_ACTION: CANCEL
+RESTRUCTURE_ACTION: CANCEL
 REVIEW_ID: <opaque-id>
 ```
 

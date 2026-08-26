@@ -1,8 +1,8 @@
 {
-  "name": "prompt-compiler-plugin",
+  "name": "restructure-plugin",
   "version": "1.0.0",
   "private": true,
-  "description": "Validation and test tooling for the Prompt Compiler skill and optional MCP review plugin.",
+  "description": "Validation and test tooling for the Restructure skill and optional MCP review plugin.",
   "type": "module",
   "scripts": {
     "validate": "node scripts/validate-plugin.mjs",

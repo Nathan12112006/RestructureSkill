@@ -2,7 +2,7 @@
 
 ## 1.0.0 - 2026-08-26
 
-This release packages the stateless Prompt Compiler skill and its optional
+This release packages the stateless Restructure skill and its optional
 closed-world MCP review renderer for repository/local-marketplace use.
 
 Added:
@@ -38,7 +38,7 @@ Release status:
 - Skill/plugin validation passed.
 - npm audit reported 0 vulnerabilities.
 - Personal marketplace installation and skill discovery passed for
-  prompt-compiler@personal at 1.0.0+codex.20260826063251.
+  restructure@personal at 1.0.0+codex.20260826063251.
 - A fresh ephemeral Codex CLI 0.149.0 run invoked the skill, called
   render_prompt_review exactly once, returned structured review/text
   fallback/UI-resource data, and stopped before the underlying task.

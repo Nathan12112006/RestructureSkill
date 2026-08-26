@@ -21056,10 +21056,10 @@ function conciseError(error2) {
 // src/review-fallback.ts
 import { createHash } from "node:crypto";
 var ACTIONS = Object.freeze({
-  approve: "PROMPT_COMPILER_ACTION: APPROVE_AND_RUN",
-  revision: "PROMPT_COMPILER_ACTION: REQUEST_REVISION",
-  original: "PROMPT_COMPILER_ACTION: USE_ORIGINAL",
-  cancel: "PROMPT_COMPILER_ACTION: CANCEL"
+  approve: "RESTRUCTURE_ACTION: APPROVE_AND_RUN",
+  revision: "RESTRUCTURE_ACTION: REQUEST_REVISION",
+  original: "RESTRUCTURE_ACTION: USE_ORIGINAL",
+  cancel: "RESTRUCTURE_ACTION: CANCEL"
 });
 function promptHash(prompt) {
   return createHash("sha256").update(prompt, "utf8").digest("hex");
@@ -21078,7 +21078,7 @@ function renderTextFallback(review) {
   const warnings = review.warnings.length ? review.warnings.map((item) => `- ${item}`).join("\n") : "(none)";
   const changes = review.meaningful_changes.length ? review.meaningful_changes.map((item) => `- ${item}`).join("\n") : "(none)";
   return [
-    "PROMPT COMPILER REVIEW",
+    "RESTRUCTURE REVIEW",
     `Review ID: ${review.review_id}`,
     `Prompt version: ${review.version}`,
     `Target: ${review.target}`,
@@ -21158,7 +21158,7 @@ var PROVENANCE_SOURCES = [
   "Earlier user message",
   "ChatGPT Project Instructions",
   "Codex AGENTS.md",
-  "Prompt Compiler profile",
+  "Restructure profile",
   "Plugin default"
 ];
 var boundedText = external_exports.string().max(MAX_ITEM_CHARS, `must be at most ${MAX_ITEM_CHARS} characters`);
@@ -21217,7 +21217,7 @@ function validatePromptReview(input) {
 }
 
 // src/tools/render-prompt-review.ts
-var UI_RESOURCE_URI = "ui://prompt-compiler/prompt-review-v1.html";
+var UI_RESOURCE_URI = "ui://restructure/prompt-review-v1.html";
 var UI_RESOURCE_MIME = "text/html;profile=mcp-app";
 var renderPromptReviewInputSchema = promptReviewSchema;
 var renderPromptReviewOutputSchema = external_exports.object({
@@ -21244,7 +21244,7 @@ function renderPromptReview(input) {
       {
         type: "resource_link",
         uri: UI_RESOURCE_URI,
-        name: "Prompt Compiler review interface",
+        name: "Restructure review interface",
         mimeType: UI_RESOURCE_MIME
       }
     ]
@@ -21258,7 +21258,7 @@ var prompt_review_default = `<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
-  <title>Prompt Compiler review</title>
+  <title>Restructure review</title>
   <style>
     :root { color-scheme: light dark; font-family: system-ui, sans-serif; line-height: 1.45; }
     body { margin: 0; padding: 1rem; background: Canvas; color: CanvasText; }
@@ -21292,7 +21292,7 @@ var prompt_review_default = `<!doctype html>
 </head>
 <body>
   <main aria-labelledby="title">
-    <h1 id="title">Prompt Compiler review</h1>
+    <h1 id="title">Restructure review</h1>
     <section class="metadata" aria-label="Review details">
       <div><span class="label">Target</span><span id="target"></span></div>
       <div><span class="label">Mode</span><span id="mode"></span></div>
@@ -21529,13 +21529,13 @@ var prompt_review_default = `<!doctype html>
         submitted = true; setButtons(true); result.textContent = 'Sending review action\u2026'; result.className = '';
         let message;
         if (action === 'cancel') {
-          message = 'PROMPT_COMPILER_ACTION: CANCEL\\nREVIEW_ID: ' + String(review.review_id);
+          message = 'RESTRUCTURE_ACTION: CANCEL\\nREVIEW_ID: ' + String(review.review_id);
         } else if (action === 'revision') {
-          message = 'PROMPT_COMPILER_ACTION: REQUEST_REVISION\\nREVIEW_ID: ' + String(review.review_id) + '\\nBASE_PROMPT_VERSION: ' + String(review.version) + '\\nREVISION_REQUEST_BEGIN\\n' + revisionRequest + '\\nREVISION_REQUEST_END';
+          message = 'RESTRUCTURE_ACTION: REQUEST_REVISION\\nREVIEW_ID: ' + String(review.review_id) + '\\nBASE_PROMPT_VERSION: ' + String(review.version) + '\\nREVISION_REQUEST_BEGIN\\n' + revisionRequest + '\\nREVISION_REQUEST_END';
         } else {
           const prompt = action === 'original' ? String(review.original_prompt || '') : edited;
           const hash = await utf8Hash(prompt);
-          message = action === 'original' ? 'PROMPT_COMPILER_ACTION: USE_ORIGINAL\\nREVIEW_ID: ' + String(review.review_id) + '\\nORIGINAL_REQUEST_SHA256: ' + hash : 'PROMPT_COMPILER_ACTION: APPROVE_AND_RUN\\nREVIEW_ID: ' + String(review.review_id) + '\\nPROMPT_VERSION: ' + String(review.version) + '\\nAPPROVED_PROMPT_SHA256: ' + hash + '\\nAPPROVED_PROMPT_BEGIN\\n' + prompt + '\\nAPPROVED_PROMPT_END';
+          message = action === 'original' ? 'RESTRUCTURE_ACTION: USE_ORIGINAL\\nREVIEW_ID: ' + String(review.review_id) + '\\nORIGINAL_REQUEST_SHA256: ' + hash : 'RESTRUCTURE_ACTION: APPROVE_AND_RUN\\nREVIEW_ID: ' + String(review.review_id) + '\\nPROMPT_VERSION: ' + String(review.version) + '\\nAPPROVED_PROMPT_SHA256: ' + hash + '\\nAPPROVED_PROMPT_BEGIN\\n' + prompt + '\\nAPPROVED_PROMPT_END';
         }
         try {
           if (window.parent && window.parent !== window) {
@@ -21560,15 +21560,15 @@ var prompt_review_default = `<!doctype html>
 `;
 
 // src/create-server.ts
-var SERVER_NAME = "prompt-compiler";
+var SERVER_NAME = "restructure";
 var SERVER_VERSION = "1.0.0";
-async function createPromptCompilerServer() {
+async function createRestructureServer() {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
   server.registerResource(
     "prompt-review-ui",
     UI_RESOURCE_URI,
     {
-      description: "Prompt Compiler review interface",
+      description: "Restructure review interface",
       mimeType: UI_RESOURCE_MIME
     },
     async (uri) => ({
@@ -21583,8 +21583,8 @@ async function createPromptCompilerServer() {
   server.registerTool(
     "render_prompt_review",
     {
-      title: "Render Prompt Compiler review",
-      description: "Validate and render a closed-world Prompt Compiler review. This tool never executes or sends the reviewed prompt.",
+      title: "Render Restructure review",
+      description: "Validate and render a closed-world Restructure review. This tool never executes or sends the reviewed prompt.",
       inputSchema: renderPromptReviewInputSchema,
       outputSchema: renderPromptReviewOutputSchema,
       annotations: {
@@ -21616,7 +21616,7 @@ export {
   UI_RESOURCE_MIME,
   UI_RESOURCE_URI,
   actionMessage,
-  createPromptCompilerServer,
+  createRestructureServer,
   promptHash,
   renderPromptReview,
   renderTextFallback

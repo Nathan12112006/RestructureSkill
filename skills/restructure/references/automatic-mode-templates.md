@@ -1,7 +1,7 @@
 # Automatic-mode templates
 
 These are deterministic generated text snippets. Return them for the user to
-copy and paste or use in the selected host. Prompt Compiler does not
+copy and paste or use in the selected host. Restructure does not
 automatically write ChatGPT Project Instructions or a repository `AGENTS.md`.
 It is never automatically written; it is returned for user paste/use only.
 The generated text is not evidence that either host setting has changed.
@@ -37,8 +37,8 @@ instructions. Do not claim to have modified the Project.
 When requested, return exactly this marked section:
 
 ```markdown
-<!-- prompt-compiler:start -->
-## Prompt Compiler workflow
+<!-- restructure:start -->
+## Restructure workflow
 
 Before implementing a new task, compile the request into a target-specific
 prompt and show a review.
@@ -50,8 +50,8 @@ current task.
 Preserve explicit constraints, filenames, paths, dates, quantities, and
 approval boundaries.
 
-Prompt Compiler profile: none
-<!-- prompt-compiler:end -->
+Restructure profile: none
+<!-- restructure:end -->
 ```
 
 Tell the user that this section is generated text to paste into the intended
@@ -66,7 +66,7 @@ The exact phrase is:
 skip prompt review for this request
 ```
 
-It bypasses Prompt Compiler review for the current request only. It is
+It bypasses Restructure review for the current request only. It is
 nonpersistent: it does not change Project Instructions, `AGENTS.md`, a profile,
 or future requests. Native host safety and operational confirmations still
 apply.

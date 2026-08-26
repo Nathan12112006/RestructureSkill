@@ -1,11 +1,11 @@
 {
-  "name": "prompt-compiler-repo",
+  "name": "restructure-repo",
   "interface": {
-    "displayName": "Prompt Compiler repository"
+    "displayName": "Restructure repository"
   },
   "plugins": [
     {
-      "name": "prompt-compiler",
+      "name": "restructure",
       "source": {
         "source": "local",
         "path": "./"

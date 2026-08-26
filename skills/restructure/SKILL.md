@@ -1,9 +1,9 @@
 ---
-name: prompt-compiler
+name: restructure
 description: Convert a user-provided natural-language request into a concise, target-specific prompt for ChatGPT or Codex. Show assumptions, meaningful changes, applied user-visible instructions, and operational impact. Require semantic approval before performing the underlying task. Do not use this skill merely because a user asks an ordinary question without requesting prompt compilation.
 ---
 
-# Prompt Compiler
+# Restructure
 
 Transform the user's ordinary request into a clearer prompt while preserving
 their intent. Keep the process inside the current conversation.
@@ -250,7 +250,7 @@ approve, execute, or send the reviewed prompt.
 
 For an empty request, respond exactly:
 
-`I need the request you want structured. Add it after invoking Prompt Compiler.`
+`I need the request you want structured. Add it after invoking Restructure.`
 
 For an unsupported target, disclose `Target assumption: Current host.` and
 continue unless target-specific formatting is essential. For contradictory

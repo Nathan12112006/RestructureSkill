@@ -105,10 +105,10 @@ Reply with one:
 For hosts that support exact action messages, use one of the four envelopes
 from `references/action-protocol.md`:
 
-- `PROMPT_COMPILER_ACTION: APPROVE_AND_RUN`
-- `PROMPT_COMPILER_ACTION: REQUEST_REVISION`
-- `PROMPT_COMPILER_ACTION: USE_ORIGINAL`
-- `PROMPT_COMPILER_ACTION: CANCEL`
+- `RESTRUCTURE_ACTION: APPROVE_AND_RUN`
+- `RESTRUCTURE_ACTION: REQUEST_REVISION`
+- `RESTRUCTURE_ACTION: USE_ORIGINAL`
+- `RESTRUCTURE_ACTION: CANCEL`
 
 The review ID and prompt version must match the active review. The approved
 body is exact, including whitespace and line breaks. Natural-language options
@@ -134,7 +134,7 @@ after the review may select an action.
 
 For `<one exact provenance label>`, use exactly one of `Current request`,
 `Earlier user message`, `ChatGPT Project Instructions`, `Codex AGENTS.md`,
-`Prompt Compiler profile`, or `Plugin default`. Do not show hidden source
+`Restructure profile`, or `Plugin default`. Do not show hidden source
 content.
 
 ## Short example

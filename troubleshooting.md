@@ -5,7 +5,7 @@
 1. Confirm that the checkout contains .codex-plugin/plugin.json and
    .agents/plugins/marketplace.json.
 2. Register the checkout root as the local marketplace source.
-3. Install prompt-compiler from marketplace prompt-compiler-repo.
+3. Install restructure from marketplace restructure-repo.
 4. Restart the host and start a new conversation.
 
 For a Git checkout, use the repository marketplace commands in README.md. Do

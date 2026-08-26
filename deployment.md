@@ -2,7 +2,7 @@
 
 ## Scope
 
-Prompt Compiler 1.0 is deployed by Git checkout and local marketplace
+Restructure 1.0 is deployed by Git checkout and local marketplace
 installation. There is no hosted production endpoint, public directory
 listing, account service, database, or remote runtime to deploy.
 
@@ -35,7 +35,7 @@ root and remain inside that root.
 
 Consumers clone or check out the Git repository, register its repository root
 as a local marketplace source with their Codex host, install
-prompt-compiler@prompt-compiler-repo, restart the host, and start a new
+restructure@restructure-repo, restart the host, and start a new
 conversation. ChatGPT desktop installation depends on the app's local
 marketplace flow and remains a host check rather than a repository deployment.
 

@@ -1,6 +1,6 @@
 # Semantic preservation
 
-Prompt Compiler clarifies a request; it does not broaden authorization or
+Restructure clarifies a request; it does not broaden authorization or
 invent facts. Compare the original and optimized prompt before presenting it.
 
 ## Mandatory rules

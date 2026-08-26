@@ -1,9 +1,9 @@
 {
-  "name": "@prompt-compiler/mcp",
+  "name": "@restructure/mcp",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Closed-world MCP Apps renderer for Prompt Compiler reviews.",
+  "description": "Closed-world MCP Apps renderer for Restructure reviews.",
   "engines": {
     "node": ">=20"
   },

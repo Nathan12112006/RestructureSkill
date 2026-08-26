@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
-  <title>Prompt Compiler review</title>
+  <title>Restructure review</title>
   <style>
     :root { color-scheme: light dark; font-family: system-ui, sans-serif; line-height: 1.45; }
     body { margin: 0; padding: 1rem; background: Canvas; color: CanvasText; }
@@ -38,7 +38,7 @@
 </head>
 <body>
   <main aria-labelledby="title">
-    <h1 id="title">Prompt Compiler review</h1>
+    <h1 id="title">Restructure review</h1>
     <section class="metadata" aria-label="Review details">
       <div><span class="label">Target</span><span id="target"></span></div>
       <div><span class="label">Mode</span><span id="mode"></span></div>
@@ -275,13 +275,13 @@
         submitted = true; setButtons(true); result.textContent = 'Sending review action…'; result.className = '';
         let message;
         if (action === 'cancel') {
-          message = 'PROMPT_COMPILER_ACTION: CANCEL\nREVIEW_ID: ' + String(review.review_id);
+          message = 'RESTRUCTURE_ACTION: CANCEL\nREVIEW_ID: ' + String(review.review_id);
         } else if (action === 'revision') {
-          message = 'PROMPT_COMPILER_ACTION: REQUEST_REVISION\nREVIEW_ID: ' + String(review.review_id) + '\nBASE_PROMPT_VERSION: ' + String(review.version) + '\nREVISION_REQUEST_BEGIN\n' + revisionRequest + '\nREVISION_REQUEST_END';
+          message = 'RESTRUCTURE_ACTION: REQUEST_REVISION\nREVIEW_ID: ' + String(review.review_id) + '\nBASE_PROMPT_VERSION: ' + String(review.version) + '\nREVISION_REQUEST_BEGIN\n' + revisionRequest + '\nREVISION_REQUEST_END';
         } else {
           const prompt = action === 'original' ? String(review.original_prompt || '') : edited;
           const hash = await utf8Hash(prompt);
-          message = action === 'original' ? 'PROMPT_COMPILER_ACTION: USE_ORIGINAL\nREVIEW_ID: ' + String(review.review_id) + '\nORIGINAL_REQUEST_SHA256: ' + hash : 'PROMPT_COMPILER_ACTION: APPROVE_AND_RUN\nREVIEW_ID: ' + String(review.review_id) + '\nPROMPT_VERSION: ' + String(review.version) + '\nAPPROVED_PROMPT_SHA256: ' + hash + '\nAPPROVED_PROMPT_BEGIN\n' + prompt + '\nAPPROVED_PROMPT_END';
+          message = action === 'original' ? 'RESTRUCTURE_ACTION: USE_ORIGINAL\nREVIEW_ID: ' + String(review.review_id) + '\nORIGINAL_REQUEST_SHA256: ' + hash : 'RESTRUCTURE_ACTION: APPROVE_AND_RUN\nREVIEW_ID: ' + String(review.review_id) + '\nPROMPT_VERSION: ' + String(review.version) + '\nAPPROVED_PROMPT_SHA256: ' + hash + '\nAPPROVED_PROMPT_BEGIN\n' + prompt + '\nAPPROVED_PROMPT_END';
         }
         try {
           if (window.parent && window.parent !== window) {
