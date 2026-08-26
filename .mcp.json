@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "prompt-compiler": {
+      "command": "node",
+      "cwd": ".",
+      "args": ["./mcp/dist/stdio.js"]
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@prompt-compiler/mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Closed-world MCP Apps renderer for Prompt Compiler reviews.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm run clean && npm run typecheck && esbuild src/stdio.ts --bundle --platform=node --format=esm --outfile=dist/stdio.js --packages=bundle --loader:.html=text && esbuild src/create-server.ts --bundle --platform=node --format=esm --outfile=dist/create-server.js --packages=bundle --loader:.html=text && esbuild src/review-fallback.ts --bundle --platform=node --format=esm --outfile=dist/review-fallback.js --packages=bundle && node -e \"require('node:fs').copyFileSync('public/prompt-review.html','dist/prompt-review.html')\"",
+    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true}); fs.mkdirSync('dist',{recursive:true})\"",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "esbuild": "^0.25.12",
+    "typescript": "^6.0.3"
+  }
+}
