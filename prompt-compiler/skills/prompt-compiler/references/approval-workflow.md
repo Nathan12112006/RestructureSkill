@@ -20,6 +20,14 @@ task. The review turn is terminal: after the text review or MCP render, call no
 more tools, continue no analysis, inspect no files, and do no underlying work
 until the user's next message.
 
+The invocation message that creates the review is never eligible to approve,
+edit, use the original, or cancel that same review. Only a new user message
+received after the review is presented is eligible to select an action. Words
+such as `run`, `continue`, `proceed immediately`, `do not wait`, or `without
+confirmation` in the invocation do not pre-authorize the reviewed prompt.
+Silence or absence of a reply is not approval. Rendering the review, exposing
+buttons, or leaving an approval control available is not approval.
+
 An empty request receives:
 
 `I need the request you want structured. Add it after invoking Prompt Compiler.`

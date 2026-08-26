@@ -16,6 +16,13 @@
     .label { display: block; font-size: .8rem; opacity: .8; }
     textarea { box-sizing: border-box; display: block; width: 100%; min-height: 13rem; resize: vertical; padding: .7rem; border: 1px solid ButtonBorder; border-radius: .4rem; color: inherit; background: Field; font: inherit; }
     .prompt-editor { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
+    .prompt-preview { padding: .25rem 0; }
+    .prompt-preview h3 { font-size: .95rem; margin: 1rem 0 .35rem; }
+    .prompt-preview h3:first-child, .prompt-preview p:first-child, .prompt-preview ul:first-child, .prompt-preview ol:first-child { margin-top: .35rem; }
+    .prompt-preview p { margin: .5rem 0; overflow-wrap: anywhere; }
+    .prompt-preview ul, .prompt-preview ol { margin: .35rem 0 .8rem; padding-left: 1.5rem; }
+    .editor-details { margin-top: 1rem; }
+    .editor-details label { display: block; margin: .55rem 0 .35rem; }
     details { margin-top: .75rem; }
     ul { margin: .35rem 0 .7rem; padding-left: 1.4rem; }
     li { overflow-wrap: anywhere; }
@@ -42,8 +49,13 @@
 
     <section class="panel">
       <h2>Optimized prompt</h2>
-      <label for="optimized-prompt">Edit the prompt before choosing an action.</label>
-      <textarea id="optimized-prompt" class="prompt-editor" spellcheck="false"></textarea>
+      <p id="optimized-prompt-help">Review the structured preview below. The exact editable prompt remains authoritative for approval.</p>
+      <div id="optimized-prompt-preview" class="prompt-preview" aria-describedby="optimized-prompt-help"></div>
+      <details class="editor-details">
+        <summary>Edit exact prompt</summary>
+        <label for="optimized-prompt">Edit the exact prompt before choosing an action. The preview updates without changing this text.</label>
+        <textarea id="optimized-prompt" class="prompt-editor" spellcheck="false"></textarea>
+      </details>
     </section>
 
     <section class="panel">
@@ -86,6 +98,7 @@
       <button type="button" id="cancel">Cancel</button>
     </div>
     <p id="result" role="status" aria-live="polite"></p>
+    <p>Status: Awaiting explicit approval in a new user message.</p>
   </main>
   <script>
     (() => {
@@ -96,8 +109,58 @@
       let review = structured && structured.review;
       const result = document.getElementById('result');
       const textarea = document.getElementById('optimized-prompt');
+      const promptPreview = document.getElementById('optimized-prompt-preview');
       const revisionField = document.getElementById('revision-request');
       const setText = (id, value) => { const node = document.getElementById(id); if (node) node.textContent = value == null ? '' : String(value); };
+      const renderPromptPreview = (value) => {
+        promptPreview.replaceChildren();
+        const lines = String(value == null ? '' : value).split(/\r?\n/);
+        let paragraphLines = [];
+        let activeList = null;
+        let activeListType = '';
+        const flushParagraph = () => {
+          if (!paragraphLines.length) return;
+          const paragraph = document.createElement('p');
+          paragraph.textContent = paragraphLines.join(' ');
+          promptPreview.append(paragraph);
+          paragraphLines = [];
+        };
+        lines.forEach((rawLine) => {
+          const line = rawLine.trim();
+          if (!line) { flushParagraph(); activeList = null; activeListType = ''; return; }
+          const unordered = line.match(/^[-*]\s+(.+)$/);
+          const ordered = line.match(/^\d+[.)]\s+(.+)$/);
+          if (unordered || ordered) {
+            flushParagraph();
+            const listType = ordered ? 'ol' : 'ul';
+            if (!activeList || activeListType !== listType) {
+              activeList = document.createElement(listType);
+              activeListType = listType;
+              promptPreview.append(activeList);
+            }
+            const item = document.createElement('li');
+            item.textContent = (ordered || unordered)[1];
+            activeList.append(item);
+            return;
+          }
+          activeList = null;
+          activeListType = '';
+          if (/^[^:]{1,100}:$/.test(line)) {
+            flushParagraph();
+            const heading = document.createElement('h3');
+            heading.textContent = line.slice(0, -1);
+            promptPreview.append(heading);
+            return;
+          }
+          paragraphLines.push(line);
+        });
+        flushParagraph();
+        if (!promptPreview.childNodes.length) {
+          const empty = document.createElement('p');
+          empty.textContent = '(empty prompt)';
+          promptPreview.append(empty);
+        }
+      };
       const addList = (id, items, emptyLabel) => {
         const node = document.getElementById(id);
         if (!node) return;
@@ -115,6 +178,7 @@
         setText('target', review.target); setText('mode', review.mode); setText('version', review.version);
         setText('review-id', review.review_id); setText('revision-count', review.revision_count);
         textarea.value = typeof review.optimized_prompt === 'string' ? review.optimized_prompt : '';
+        renderPromptPreview(textarea.value);
         setText('original-prompt', review.original_prompt);
         const groups = review.assumptions || {};
         const assumptionsNode = document.getElementById('assumptions');
@@ -232,6 +296,7 @@
       document.getElementById('revision').addEventListener('click', () => send('revision'));
       document.getElementById('original').addEventListener('click', () => send('original'));
       document.getElementById('cancel').addEventListener('click', () => send('cancel'));
+      textarea.addEventListener('input', () => renderPromptPreview(textarea.value));
       render();
       request('ui/initialize', { version: '1.0', capabilities: {} }).catch(() => {});
     })();

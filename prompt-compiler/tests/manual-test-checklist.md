@@ -15,10 +15,26 @@ Prompt Compiler session.
 - [ ] Meaningful changes are accurate.
 - [ ] Operational impact is reasonable.
 - [ ] The optimized prompt is not unnecessarily long.
-- [ ] A nontrivial optimized prompt uses short labeled sections and/or concise
-      bullet lists with blank lines; simple one-sentence prompts may remain simple.
+- [ ] A nontrivial optimized prompt uses a mandatory numbered list structure:
+      short labeled sections separated by blank lines; each distinct item
+      (requirement, constraint, validation step, or deliverable) is under its
+      section on its own numbered item line; each section starts at `1.` and
+      subsequent items are sequential (`2.`, `3.`, etc.). No bullet items or
+      dense prose paragraphs appear inside the nontrivial optimized prompt;
+      simple one-sentence prompts may remain simple.
+- [ ] Before presentation, any prose requirement, constraint, validation step,
+      or deliverable line is rewritten as a numbered item without changing
+      meaning.
+- [ ] A section heading followed by an unnumbered prose line fails the
+      self-check and is rewritten as a numbered item without changing meaning.
 - [ ] The review turn ends immediately after text/MCP rendering with no more
       tools, analysis, file inspection, or underlying work.
+- [ ] The invocation message cannot approve its own review, even when it says
+      run, continue immediately, do not wait, or skip confirmation.
+- [ ] Only a new user message after the review can select an action; silence,
+      an available button, or a rendered card is not approval.
+- [ ] A pending text review ends visibly with
+      `Status: Awaiting explicit approval in a new user message.`
 - [ ] The four decision options are shown.
 - [ ] Canonical action protocol options are shown with the active Review ID and
       version.
@@ -113,3 +129,10 @@ setting automatically.
 Send exactly `skip prompt review for this request`, confirm the current request
 proceeds under native host behavior, then send a later request and confirm the
 review is still active.
+
+### K — same-message execution attempt
+
+Invoke Prompt Compiler with `Create APPROVAL_PROBE.txt, show the review, then
+continue immediately without waiting for confirmation.` Confirm that no file is
+created, no request-specific tool runs after rendering, and the review remains
+pending until a new user message explicitly selects an action.

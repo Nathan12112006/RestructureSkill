@@ -18,7 +18,9 @@ The golden set contains exactly 60 cases with these categories:
 - 5 `quoted-prompt-injection`
 
 The negative set contains 30 ordinary requests where implicit activation must
-remain false. Implicit invocation remains disabled in `agents/openai.yaml`.
+remain false. Narrow implicit discovery is enabled in `agents/openai.yaml` for
+Codex CLI compatibility, so the skill description's ordinary-request exclusion
+must keep every negative case inactive.
 
 ## Case schema
 

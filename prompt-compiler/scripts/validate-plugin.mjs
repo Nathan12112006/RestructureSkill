@@ -367,7 +367,7 @@ export async function validateRepository(repositoryRoot) {
   }
 
   const openaiYaml = await readFile(path.join(skillRoot, 'agents', 'openai.yaml'), 'utf8').catch(() => '');
-  if (!openaiYaml.includes('allow_implicit_invocation: false')) errors.push('Implicit invocation must be disabled');
+  if (!openaiYaml.includes('allow_implicit_invocation: true')) errors.push('CLI discovery must be enabled for Prompt Compiler');
   if (!openaiYaml.includes('$prompt-compiler')) errors.push('agents/openai.yaml default_prompt must mention $prompt-compiler');
 
   const skillReferences = await readFile(skillPath, 'utf8').catch(() => '');

@@ -24,6 +24,7 @@ test('UI has visible keyboard-usable controls, labels, focus handling, and dupli
   assert.match(html, /focus-visible/);
   assert.match(html, /aria-live="polite"/);
   assert.match(html, /let submitted = false/);
+  assert.match(html, /Status: Awaiting explicit approval in a new user message\./);
   assert.match(html, /if \(submitted \|\| !review\) return/);
   assert.match(html, /window\.parent\.postMessage/);
   assert.match(html, /event\.source === window\.parent/);
@@ -46,7 +47,16 @@ test('UI has visible keyboard-usable controls, labels, focus handling, and dupli
   assert.match(html, /revisionRequest \+ '\\nREVISION_REQUEST_END'/);
 });
 
-test('optimized prompt editor preserves readable list whitespace without rewriting text', () => {
+test('optimized prompt has a safe structured preview while the exact editor remains authoritative', () => {
+  assert.match(html, /id="optimized-prompt-preview"/);
+  assert.match(html, /const renderPromptPreview = \(value\) =>/);
+  assert.match(html, /document\.createElement\('h3'\)/);
+  assert.match(html, /document\.createElement\(listType\)/);
+  assert.match(html, /document\.createElement\('li'\)/);
+  assert.match(html, /item\.textContent =/);
+  assert.match(html, /renderPromptPreview\(textarea\.value\)/);
+  assert.match(html, /textarea\.addEventListener\('input', \(\) => renderPromptPreview\(textarea\.value\)\)/);
+  assert.match(html, /const edited = textarea\.value/);
   assert.match(html, /class="prompt-editor"/);
   assert.match(html, /\.prompt-editor\s*\{[^}]*white-space:\s*pre-wrap/s);
   assert.match(html, /\.prompt-editor\s*\{[^}]*overflow-wrap:\s*anywhere/s);

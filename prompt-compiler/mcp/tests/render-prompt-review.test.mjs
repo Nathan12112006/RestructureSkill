@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import {
   createPromptCompilerServer,
   renderPromptReview,
@@ -34,8 +36,9 @@ test('render returns structured review, complete fallback, and UI resource link'
     'MEANINGFUL CHANGES', 'APPLIED USER INSTRUCTIONS', 'Earlier user message',
     'OPERATIONAL IMPACT', 'read-only', 'WARNINGS', 'PROMPT_COMPILER_ACTION: APPROVE_AND_RUN',
     'PROMPT_COMPILER_ACTION: REQUEST_REVISION', 'PROMPT_COMPILER_ACTION: USE_ORIGINAL',
-    'PROMPT_COMPILER_ACTION: CANCEL',
+    'PROMPT_COMPILER_ACTION: CANCEL', 'Status: Awaiting explicit approval in a new user message.',
   ]) assert.match(rendered.content[0].text, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.ok(rendered.content[0].text.endsWith('Status: Awaiting explicit approval in a new user message.'));
   assert.equal(rendered.content[1].type, 'resource_link');
   assert.equal(rendered.content[1].uri, UI_RESOURCE_URI);
   assert.equal(rendered.content[1].mimeType, UI_RESOURCE_MIME);
@@ -55,6 +58,29 @@ test('validation enforces prompt, item, list, warning, and grouped-assumption li
   assert.throws(() => renderPromptReview({ ...review(), assumptions: { low: Array.from({ length: 51 }, () => 'x'), medium: [], high: [] } }), /assumptions/i);
   assert.throws(() => renderPromptReview({ ...review(), meaningful_changes: ['x'.repeat(2_001)] }), /meaningful_changes/i);
   assert.throws(() => renderPromptReview({ ...review(), assumptions: { low: Array.from({ length: 25 }, () => 'x'), medium: Array.from({ length: 25 }, () => 'x'), high: ['x'] } }), /assumptions/i);
+});
+
+test('MCP tools/list and resources/read preserve the UI render contract', async () => {
+  const server = await createPromptCompilerServer();
+  const client = new Client({ name: 'prompt-compiler-ui-regression', version: '1.0.0' });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+  try {
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+
+    const toolsResult = await client.listTools();
+    const renderTool = toolsResult.tools.find(({ name }) => name === 'render_prompt_review');
+    assert.ok(renderTool, 'tools/list must expose render_prompt_review');
+    assert.equal(renderTool._meta?.ui?.resourceUri, UI_RESOURCE_URI);
+    assert.equal(renderTool._meta?.['openai/outputTemplate'], UI_RESOURCE_URI);
+
+    const resourceResult = await client.readResource({ uri: UI_RESOURCE_URI });
+    assert.equal(resourceResult.contents.length, 1);
+    assert.equal(resourceResult.contents[0].uri, UI_RESOURCE_URI);
+    assert.equal(resourceResult.contents[0].mimeType, 'text/html;profile=mcp-app');
+  } finally {
+    await Promise.allSettled([client.close(), server.close()]);
+  }
 });
 
 test('server exposes exactly one annotated render tool and versioned HTML resource', async () => {

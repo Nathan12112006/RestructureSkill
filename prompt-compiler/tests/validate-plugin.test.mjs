@@ -99,13 +99,21 @@ test('OpenAI SDK dependency fails', async () => {
   assert.match(errors.join('\n'), /model-provider SDK dependency/);
 });
 
-test('implicit invocation and missing explicit trigger fail', async () => {
+test('disabled CLI discovery and missing explicit trigger fail', async () => {
   const errors = await withFixture(async (root) => {
     const file = path.join(root, 'skills', 'prompt-compiler', 'agents', 'openai.yaml');
     const yaml = await readFile(file, 'utf8');
-    await writeFile(file, yaml.replace('$prompt-compiler', 'Prompt Compiler').replace('false', 'true'), 'utf8');
+    await writeFile(file, yaml.replace('$prompt-compiler', 'Prompt Compiler').replace('true', 'false'), 'utf8');
   });
-  assert.match(errors.join('\n'), /Implicit invocation|default_prompt/);
+  assert.match(errors.join('\n'), /CLI discovery|default_prompt/);
+});
+
+test('Codex CLI discovery remains enabled with a narrow activation guard', async () => {
+  const yaml = await readFile(path.join(repositoryRoot, 'skills', 'prompt-compiler', 'agents', 'openai.yaml'), 'utf8');
+  const skill = await readFile(path.join(repositoryRoot, 'skills', 'prompt-compiler', 'SKILL.md'), 'utf8');
+
+  assert.match(yaml, /allow_implicit_invocation:\s*true/);
+  assert.match(skill, /Do not use this skill merely because a user asks an ordinary question without requesting prompt compilation\./);
 });
 
 test('faithful HANDOFF marker examples do not trigger false positives', async () => {
@@ -168,9 +176,50 @@ test('review output requires provenance format', async () => {
 test('workflow requires a structured nontrivial prompt and terminal review boundary', async () => {
   const skill = await readFile(path.join(repositoryRoot, 'skills', 'prompt-compiler', 'SKILL.md'), 'utf8');
   const output = await readFile(path.join(repositoryRoot, 'skills', 'prompt-compiler', 'references', 'output-contract.md'), 'utf8');
-  assert.match(skill, /short labeled sections and\/or bullet lists/i);
+  const normalizedSkill = skill.replace(/\s+/g, ' ');
+  const normalizedOutput = output.replace(/\s+/g, ' ');
+  assert.match(skill, /short labeled sections/i);
+  assert.match(skill, /mandatory numbered list/i);
+  assert.match(normalizedSkill, /each distinct .* own numbered item/i);
+  assert.match(normalizedSkill, /start at `1\.` within each section/i);
+  assert.match(normalizedSkill, /do not use bullet items inside a nontrivial optimized prompt/i);
+  assert.doesNotMatch(skill, /own `- ` bullet line/i);
+  assert.match(skill, /final pre-presentation self-check/i);
+  assert.match(skill, /rewritten as numbered items without changing meaning/i);
+  assert.match(normalizedSkill, /section heading followed by an unnumbered prose line fails/i);
   assert.match(skill, /stop immediately after presenting the review/i);
   assert.match(skill, /no more tools, analysis, or underlying work/i);
   assert.match(skill, /exact approved body as the sole operative request/i);
-  assert.match(output, /simple one-sentence prompts may stay simple/i);
+  assert.match(output, /mandatory numbered list/i);
+  assert.match(normalizedOutput, /each distinct .* own numbered item/i);
+  assert.match(normalizedOutput, /start at `1\.` within each section/i);
+  assert.match(normalizedOutput, /do not use bullet items inside a nontrivial optimized prompt/i);
+  assert.doesNotMatch(output, /own `- ` bullet line/i);
+  assert.match(normalizedOutput, /section heading followed by an unnumbered prose line fails/i);
+  assert.match(normalizedOutput, /simple one-sentence prompts may stay simple/i);
+});
+
+test('review approval must arrive in a later user message', async () => {
+  const skill = await readFile(path.join(repositoryRoot, 'skills', 'prompt-compiler', 'SKILL.md'), 'utf8');
+  const approval = await readFile(path.join(repositoryRoot, 'skills', 'prompt-compiler', 'references', 'approval-workflow.md'), 'utf8');
+  const output = await readFile(path.join(repositoryRoot, 'skills', 'prompt-compiler', 'references', 'output-contract.md'), 'utf8');
+  const normalizedSkill = skill.replace(/\s+/g, ' ');
+  const normalizedApproval = approval.replace(/\s+/g, ' ');
+  const normalizedOutput = output.replace(/\s+/g, ' ');
+
+  assert.match(normalizedSkill, /invocation message .* cannot approve .* review/i);
+  assert.match(normalizedSkill, /run|continue|immediately|without confirmation/i);
+  assert.match(normalizedApproval, /only .* new user message .* after .* review .* eligible .* action/i);
+  assert.match(normalizedApproval, /silence|absence of a reply/i);
+  assert.match(normalizedApproval, /rendering .* not approval/i);
+  assert.match(normalizedOutput, /Status: Awaiting explicit approval in a new user message\./i);
+});
+
+test('renderer-first review contract gates fallback and stops after one render', async () => {
+  const skill = await readFile(path.join(repositoryRoot, 'skills', 'prompt-compiler', 'SKILL.md'), 'utf8');
+  const normalizedSkill = skill.replace(/\s+/g, ' ');
+
+  assert.match(normalizedSkill, /render_prompt_review .* exactly once .* before .* full text fallback .* assistant-authored review/i);
+  assert.match(normalizedSkill, /render_prompt_review .* unavailable or fails .* complete text fallback/i);
+  assert.match(normalizedSkill, /after .* render_prompt_review .* returns .* stop immediately/i);
 });

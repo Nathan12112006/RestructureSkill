@@ -34,14 +34,17 @@ still require manual verification because installation surfaces can change.
 
 ### Codex
 
-The current documented workflow uses `/plugins` to browse or enable plugins in
-Codex and a configured marketplace, followed by a new session when required.
-This repository intentionally creates no marketplace entry and does not install
-itself. For a local marketplace workflow, manually verify the current
-documentation, place the plugin in the supported local marketplace structure,
-and use `codex plugin marketplace add ./local-marketplace-root` only for a
-non-default marketplace that you explicitly configured. Then start a new
-session if the host requests it.
+Plugins are supported in Codex inside the ChatGPT desktop app and through the
+Codex CLI. In the CLI, use `/plugins` to browse or enable plugins from a
+configured marketplace. The Codex IDE extension does not support plugins, so
+the Prompt Compiler skill and MCP review card cannot appear there.
+
+After installing or updating the plugin, restart the relevant app and start a
+new Codex chat or CLI session so its bundled skill and MCP tools are loaded.
+This repository intentionally does not install itself. For a non-default local
+marketplace, manually verify the current documentation and configure that
+marketplace before installing from it; the default personal marketplace is
+discovered automatically and should not be added again.
 
 ### ChatGPT
 
@@ -51,7 +54,7 @@ plugin has been installed, listed, or exercised in ChatGPT.
 
 ## Usage
 
-Explicit invocation remains the supported workflow:
+Explicit invocation remains the recommended workflow:
 
 ```text
 @Prompt Compiler
@@ -103,14 +106,20 @@ bypass phrase is `skip prompt review for this request`, and it is nonpersistent.
 ## Limitations
 
 - It is not global middleware for every message.
-- Explicit invocation is recommended while implicit invocation is disabled.
+- Narrow implicit discovery is enabled as a compatibility workaround for
+  current Codex CLI explicit-only skill resolution. The skill description
+  still restricts activation to requests that ask for prompt compilation,
+  structuring, optimization, or review.
+- Plugins are unavailable in the Codex IDE extension; use Codex in the ChatGPT
+  desktop app or Codex CLI instead.
 - The optional Milestone 3 MCP UI is not guaranteed to be available; the text-only review is always the fallback.
 - There is no persistent instruction storage yet.
 - Automatic invocation is not guaranteed.
 - There is no direct Project-memory or Project-Instructions integration; setup
   snippets require manual paste/use.
 - Host safety and tool approvals still apply.
-- No host integration has been tested by this repository validation.
+- Codex CLI discovery and approval stopping have been exercised locally;
+  ChatGPT and Codex IDE host integration still require manual verification.
 
 ## Development
 

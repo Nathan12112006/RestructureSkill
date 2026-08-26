@@ -14,6 +14,12 @@ During the compilation response, do not perform the user's underlying task.
 
 First present the prompt review and stop. Continue only after the user clearly
 approves, requests an edit, chooses the original request, or cancels.
+Stop immediately after presenting the review.
+
+The invocation message that creates a review cannot approve that same review.
+This remains true when the message says to run, continue, proceed immediately,
+skip confirmation, or not wait. Only a new user message received after the
+review is presented may select an approval action.
 
 The review turn is terminal: after emitting the text review, or after the
 optional `render_prompt_review` tool returns, stop immediately and wait for the
@@ -55,19 +61,37 @@ Read these references when relevant:
 6. Make only low- or medium-impact assumptions that are necessary.
 7. State every material assumption.
 8. Create the smallest prompt structure that materially improves the request.
-   For a nontrivial request, use short labeled sections and/or bullet lists
-   with concise items and blank lines; avoid dense paragraph blocks. Simple
+   For a nontrivial request, a mandatory numbered list structure applies: use
+   short labeled sections separated by blank lines. Put each distinct item
+   (requirement, constraint, validation step, or deliverable) under its section
+   on its own numbered item line. Start at `1.` within each section and number
+   subsequent items sequentially (`2.`, `3.`, etc.). Do not use bullet items
+   inside a nontrivial optimized prompt or dense prose paragraphs. Simple
    one-sentence prompts may stay simple.
 9. Compare the optimized prompt with the original.
 10. List only changes that could affect meaning, scope, validation, or output.
 11. Classify operational impact.
-12. Present the review using the required output contract. If the optional
-    `render_prompt_review` MCP tool is available, call it with the complete
-    structured review after compilation; otherwise use the complete text
-    fallback. Never send a review payload for the one-request bypass.
-13. Stop immediately after presenting the review or receiving the MCP render
-    result. Do not call another tool, continue analysis, inspect files, or
-    perform the underlying task in this turn.
+12. Run a final pre-presentation self-check. For every nontrivial optimized
+    prompt, confirm that each section uses sequential numbered items and that
+    any prose requirement, constraint, validation step, or deliverable line is
+    rewritten as numbered items without changing meaning. A section heading
+    followed by an unnumbered prose line fails this self-check; rewrite that
+    line as a numbered item without changing meaning. Preserve the simple
+    one-sentence exception and the exact authoritative fenced-prompt bytes.
+13. Present the complete review using the required output contract. If the
+    optional renderer is available, the render_prompt_review renderer call is
+    required; call it exactly once with the complete structured review before
+    emitting any full text fallback or assistant-authored review. Treat the
+    renderer response as the presented review; rendering is presentation only,
+    not execution, and it occurs before waiting for approval. If the
+    render_prompt_review invocation is unavailable or fails then emit the
+    complete text fallback. Never send a review payload for the one-request
+    bypass.
+14. After the render_prompt_review call returns the host must stop immediately,
+    or stop immediately after fallback text is emitted. Do not call another
+    tool, continue analysis, inspect files, or perform the underlying task in
+    this turn. Keep the optional MCP server path unavailable for hosts that do
+    not support it; the text fallback remains authoritative there.
 
 When the user requests automatic-mode setup, return the deterministic text in
 `references/automatic-mode-templates.md` for the user to paste or use. Never
@@ -192,10 +216,15 @@ Follow `references/output-contract.md` exactly. Use a plain-text fenced block
 for the optimized prompt. For a simple request, keep the optimized prompt
 simple.
 
-For a nontrivial optimized prompt, use short labeled sections and/or concise
-bullet lists with blank lines so the request is readable and editable. The
-fenced block is still authoritative: preserve its exact bytes in the MCP
-textarea and in any approval hash/action message; do not parse or rewrite it.
+For a nontrivial optimized prompt, a mandatory numbered list structure applies.
+Use short labeled sections separated by blank lines. Under every section, put
+each distinct item (requirement, constraint, validation step, or deliverable) on
+its own numbered item line. Start at `1.` within each section and number
+subsequent items sequentially (`2.`, `3.`, etc.). Do not use bullet items inside
+a nontrivial optimized prompt or dense prose paragraphs. The fenced block is
+still authoritative: preserve its exact bytes in the MCP textarea and in any
+approval hash/action message; do not rewrite it. Simple one-sentence prompts
+may stay simple.
 
 If an MCP-rendered card is unavailable, the text review is authoritative and
 must include all fields and canonical actions. Rendering a card does not itself
@@ -213,5 +242,6 @@ constraints, preserve both statements, explain the contradiction, and ask for
 clarification or offer a read-only interpretation; never silently choose one.
 
 When a user requests immediate execution after invoking the skill, present the
-review first. The user can choose `Use original` as an explicit bypass without
-weakening native safety or tool confirmations.
+review and end the response. Immediate-execution wording in the invocation is
+not approval. The user can choose `Use original` in a new message as an
+explicit bypass without weakening native safety or tool confirmations.

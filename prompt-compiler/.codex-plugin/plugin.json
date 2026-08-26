@@ -1,6 +1,6 @@
 {
   "name": "prompt-compiler",
-  "version": "0.3.0+codex.20260821100034",
+  "version": "0.3.0+codex.20260826053138",
   "description": "Turn ordinary requests into clear ChatGPT or Codex prompts, show assumptions and meaningful changes, and require approval before execution.",
   "author": {
     "name": "Codex"

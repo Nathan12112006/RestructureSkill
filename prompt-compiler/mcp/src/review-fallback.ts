@@ -62,6 +62,8 @@ export function renderTextFallback(review: PromptReview): string {
     `${ACTIONS.approve}\n${ACTIONS.revision}\n${ACTIONS.original}\n${ACTIONS.cancel}`,
     '',
     'Prompt approval confirms wording and intent. Native confirmations may still be required before files, accounts, external services, or destructive operations are changed.',
+    '',
+    'Status: Awaiting explicit approval in a new user message.',
   ].join('\n');
 }
 
