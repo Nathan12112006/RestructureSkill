@@ -43,7 +43,9 @@ In a supported ChatGPT host, invoke the skill from the plugin picker or with:
 
     @Restructure
 
-    Fix the login issue and do not over-engineer it.
+For Codex, use:
+
+    $Restructure
 
 The review presents the original request verbatim, the optimized prompt,
 assumptions, meaningful changes, applied user-visible instructions,
