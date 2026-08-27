@@ -45,12 +45,6 @@ In a supported ChatGPT host, invoke the skill from the plugin picker or with:
 
     Fix the login issue and do not over-engineer it.
 
-In Codex, use the installed skill:
-
-    $restructure
-
-    Fix the login issue and do not over-engineer it.
-
 The review presents the original request verbatim, the optimized prompt,
 assumptions, meaningful changes, applied user-visible instructions,
 operational impact, a review ID, and a positive prompt version. It then stops.

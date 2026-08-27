@@ -17,8 +17,7 @@ source path resolves to the registered repository root.
 The text review is the supported fallback. Confirm that the checkout includes
 the built mcp/dist files and that .mcp.json launches mcp/dist/stdio.js. Then
 run the MCP package build/test commands and start a new host conversation.
-The Codex CLI does not itself render inline cards. The Codex IDE extension is
-untested for this package.
+The Codex CLI does not itself render inline cards. The Codex IDE extension does not seem to work for this package.
 
 ## The review does not stop
 
@@ -55,3 +54,8 @@ fallback worked. Remove raw prompts, transcripts, tokens, uploaded files, and
 private repository content before sharing diagnostics. Use the repository
 support process; maintainers must configure a public GitHub Issues contact
 before publication.
+
+
+## Failed to load MCP app: thread not found Error
+
+This error is from ChatGPT's side as it can sometimes request the MCP app resource before it finishes resuming the conversation thread. To fix this, try resending the prompt (click the edit button and send again)， restart the app, or open a new conversation.
