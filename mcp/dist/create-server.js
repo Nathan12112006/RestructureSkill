@@ -21079,7 +21079,6 @@ function renderTextFallback(review) {
   const changes = review.meaningful_changes.length ? review.meaningful_changes.map((item) => `- ${item}`).join("\n") : "(none)";
   return [
     "RESTRUCTURE REVIEW",
-    `Review ID: ${review.review_id}`,
     `Prompt version: ${review.version}`,
     `Target: ${review.target}`,
     `Compilation mode: ${review.mode}`,
@@ -21120,10 +21119,9 @@ ${ACTIONS.cancel}`,
   ].join("\n");
 }
 function actionMessage(action, review, editedPrompt) {
-  if (action === "cancel") return [ACTIONS.cancel, `REVIEW_ID: ${review.review_id}`].join("\n");
+  if (action === "cancel") return ACTIONS.cancel;
   if (action === "revision") return [
     ACTIONS.revision,
-    `REVIEW_ID: ${review.review_id}`,
     `BASE_PROMPT_VERSION: ${review.version}`,
     "REVISION_REQUEST_BEGIN",
     editedPrompt ?? "",
@@ -21132,14 +21130,12 @@ function actionMessage(action, review, editedPrompt) {
   if (action === "original") {
     return [
       ACTIONS.original,
-      `REVIEW_ID: ${review.review_id}`,
       `ORIGINAL_REQUEST_SHA256: ${promptHash(review.original_prompt)}`
     ].join("\n");
   }
   const prompt = editedPrompt ?? review.optimized_prompt;
   return [
     ACTIONS.approve,
-    `REVIEW_ID: ${review.review_id}`,
     `PROMPT_VERSION: ${review.version}`,
     `APPROVED_PROMPT_SHA256: ${promptHash(prompt)}`,
     "APPROVED_PROMPT_BEGIN",
@@ -21184,12 +21180,12 @@ var operationalImpactSchema = external_exports.object({
   reason: boundedText
 }).strict();
 var promptReviewSchema = external_exports.object({
-  review_id: external_exports.string().min(1, "must be nonempty").max(200).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/, "must be a single-line opaque token"),
   version: external_exports.number().int().positive(),
   target: external_exports.enum(["chatgpt", "codex", "current-host"]),
   mode: external_exports.enum(["minimal", "balanced", "strict"]),
   original_prompt: external_exports.string().min(1, "must be nonempty").max(MAX_PROMPT_CHARS),
   optimized_prompt: external_exports.string().min(1, "must be nonempty").max(MAX_PROMPT_CHARS),
+  behaviour_tuning_prompt: external_exports.string().min(1, "must be nonempty").max(MAX_PROMPT_CHARS).describe("Request-tailored model role and working-style guidance generated alongside the optimized prompt without changing scope, facts, permissions, safety, or approval requirements.").optional(),
   assumptions: assumptionsSchema,
   meaningful_changes: boundedList,
   applied_user_instructions: external_exports.array(appliedInstructionSchema).max(MAX_LIST_ITEMS),
@@ -21277,13 +21273,19 @@ var prompt_review_default = `<!doctype html>
     .prompt-preview ul, .prompt-preview ol { margin: .35rem 0 .8rem; padding-left: 1.5rem; }
     .editor-details { margin-top: 1rem; }
     .editor-details label { display: block; margin: .55rem 0 .35rem; }
+    .toggle-row { display: flex; align-items: flex-start; gap: .55rem; margin-top: 1rem; }
+    .toggle-row input { flex: 0 0 auto; margin-top: .25rem; }
+    .tuning-editor { margin-top: .75rem; }
+    .tuning-editor label { display: block; margin-bottom: .35rem; }
+    .tuning-editor textarea { min-height: 8rem; }
+    [hidden] { display: none !important; }
     details { margin-top: .75rem; }
     ul { margin: .35rem 0 .7rem; padding-left: 1.4rem; }
     li { overflow-wrap: anywhere; }
     .warning { border-left: .35rem solid #b45309; padding: .65rem .8rem; background: color-mix(in srgb, #b45309 15%, Canvas); }
     .actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1rem; }
     button { min-height: 2.5rem; padding: .55rem .85rem; border: 1px solid ButtonBorder; border-radius: .35rem; background: ButtonFace; color: ButtonText; font: inherit; cursor: pointer; }
-    button:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 3px solid Highlight; outline-offset: 2px; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 3px solid Highlight; outline-offset: 2px; }
     button:disabled { cursor: not-allowed; opacity: .55; }
     #result { min-height: 1.5rem; margin-top: .75rem; }
     .error { color: #b91c1c; }
@@ -21297,7 +21299,6 @@ var prompt_review_default = `<!doctype html>
       <div><span class="label">Target</span><span id="target"></span></div>
       <div><span class="label">Mode</span><span id="mode"></span></div>
       <div><span class="label">Prompt version</span><span id="version"></span></div>
-      <div><span class="label">Review ID</span><span id="review-id"></span></div>
       <div><span class="label">Revision count</span><span id="revision-count"></span></div>
     </section>
 
@@ -21310,6 +21311,17 @@ var prompt_review_default = `<!doctype html>
         <label for="optimized-prompt">Edit the exact prompt before choosing an action. The preview updates without changing this text.</label>
         <textarea id="optimized-prompt" class="prompt-editor" spellcheck="false"></textarea>
       </details>
+      <div id="behaviour-tuning-option" class="toggle-row" hidden>
+        <input type="checkbox" id="behaviour-tuning-enabled" aria-describedby="behaviour-tuning-help">
+        <div>
+          <label for="behaviour-tuning-enabled">Add behaviour tuning</label>
+          <small id="behaviour-tuning-help">Off by default. Enable it to review, edit, and append the generated request-tailored model behaviour.</small>
+        </div>
+      </div>
+      <div id="behaviour-tuning-controls" class="tuning-editor" hidden>
+        <label for="behaviour-tuning-prompt">Behaviour-tuning prompt</label>
+        <textarea id="behaviour-tuning-prompt" class="prompt-editor" spellcheck="false" aria-describedby="behaviour-tuning-help"></textarea>
+      </div>
     </section>
 
     <section class="panel">
@@ -21360,16 +21372,11 @@ var prompt_review_default = `<!doctype html>
       const MAX_PROMPT_CHARS = 50000;
       const MAX_THREAD_RESUME_RETRIES = 1;
       const THREAD_RESUME_ERROR_MARKERS = ['thread not found', 'needs_resume', 'no rollout found', 'not loaded'];
-      const REVIEW_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
       const output = window.openai && window.openai.toolOutput;
       const structured = output && output.structuredContent ? output.structuredContent : output;
       const isValidReview = (candidate) => Boolean(
         candidate
         && typeof candidate === 'object'
-        && typeof candidate.review_id === 'string'
-        && candidate.review_id.length > 0
-        && candidate.review_id.length <= 200
-        && REVIEW_ID_PATTERN.test(candidate.review_id)
         && Number.isInteger(candidate.version)
         && candidate.version > 0
         && typeof candidate.original_prompt === 'string'
@@ -21378,16 +21385,24 @@ var prompt_review_default = `<!doctype html>
         && typeof candidate.optimized_prompt === 'string'
         && candidate.optimized_prompt.length > 0
         && candidate.optimized_prompt.length <= MAX_PROMPT_CHARS
+        && (candidate.behaviour_tuning_prompt === undefined
+          || (typeof candidate.behaviour_tuning_prompt === 'string'
+            && candidate.behaviour_tuning_prompt.length > 0
+            && candidate.behaviour_tuning_prompt.length <= MAX_PROMPT_CHARS))
       );
       let review = structured && structured.review;
       if (!isValidReview(review)) review = null;
-      let mountedReviewIdentity = review ? { reviewId: review.review_id, version: review.version } : null;
+      let reviewMounted = Boolean(review);
       let bridgeReady = false;
       let legacyFallbackReady = false;
       let appTornDown = false;
       const result = document.getElementById('result');
       const textarea = document.getElementById('optimized-prompt');
       const promptPreview = document.getElementById('optimized-prompt-preview');
+      const tuningOption = document.getElementById('behaviour-tuning-option');
+      const tuningToggle = document.getElementById('behaviour-tuning-enabled');
+      const tuningControls = document.getElementById('behaviour-tuning-controls');
+      const tuningTextarea = document.getElementById('behaviour-tuning-prompt');
       const revisionField = document.getElementById('revision-request');
       const setText = (id, value) => { const node = document.getElementById(id); if (node) node.textContent = value == null ? '' : String(value); };
       const renderPromptPreview = (value) => {
@@ -21439,6 +21454,12 @@ var prompt_review_default = `<!doctype html>
           promptPreview.append(empty);
         }
       };
+      const composePrompt = () => tuningToggle.checked
+        ? textarea.value + '\\n\\n' + tuningTextarea.value
+        : textarea.value;
+      const updateTuningVisibility = () => {
+        tuningControls.hidden = !tuningToggle.checked;
+      };
       const addList = (id, items, emptyLabel) => {
         const node = document.getElementById(id);
         if (!node) return;
@@ -21454,8 +21475,13 @@ var prompt_review_default = `<!doctype html>
         result.textContent = '';
         result.className = '';
         setText('target', review.target); setText('mode', review.mode); setText('version', review.version);
-        setText('review-id', review.review_id); setText('revision-count', review.revision_count);
+        setText('revision-count', review.revision_count);
         textarea.value = typeof review.optimized_prompt === 'string' ? review.optimized_prompt : '';
+        const tuningAvailable = typeof review.behaviour_tuning_prompt === 'string';
+        tuningTextarea.value = tuningAvailable ? review.behaviour_tuning_prompt : '';
+        tuningToggle.checked = false;
+        tuningOption.hidden = !tuningAvailable;
+        updateTuningVisibility();
         renderPromptPreview(textarea.value);
         setText('original-prompt', review.original_prompt);
         const groups = review.assumptions || {};
@@ -21498,15 +21524,15 @@ var prompt_review_default = `<!doctype html>
         for (const candidate of candidates) {
           if (!candidate || typeof candidate !== 'object') continue;
           if (candidate.review && typeof candidate.review === 'object') return candidate.review;
-          if (typeof candidate.review_id === 'string') return candidate;
+          if (typeof candidate.optimized_prompt === 'string') return candidate;
         }
         return null;
       };
       const mountReviewOnce = (incoming) => {
         if (!isValidReview(incoming)) return false;
-        if (mountedReviewIdentity) return false;
+        if (reviewMounted) return false;
         review = incoming;
-        mountedReviewIdentity = { reviewId: incoming.review_id, version: incoming.version };
+        reviewMounted = true;
         render();
         if (!submitted && !appTornDown && (bridgeReady || (legacyFallbackReady && hasLegacyMessageBridge()))) setButtons(false);
         return true;
@@ -21611,25 +21637,29 @@ var prompt_review_default = `<!doctype html>
         if (appTornDown) return;
         if (!isValidReview(review)) { result.textContent = 'Review data is invalid; no review action was sent.'; result.className = 'error'; setButtons(true); return; }
         const reviewSnapshot = {
-          reviewId: review.review_id,
           version: review.version,
           originalPrompt: review.original_prompt,
         };
         const edited = textarea.value;
         if (edited.length > MAX_PROMPT_CHARS) { result.textContent = 'The optimized prompt is too long.'; result.className = 'error'; textarea.focus(); return; }
+        const tuning = tuningTextarea.value;
+        if (action === 'approve' && tuningToggle.checked && tuning.length > MAX_PROMPT_CHARS) { result.textContent = 'The behaviour-tuning prompt is too long.'; result.className = 'error'; tuningTextarea.focus(); return; }
+        if (action === 'approve' && tuningToggle.checked && !tuning.trim()) { result.textContent = 'Enter a behaviour-tuning prompt or turn behaviour tuning off.'; result.className = 'error'; tuningTextarea.focus(); return; }
+        const composedPrompt = composePrompt();
+        if (action === 'approve' && composedPrompt.length > MAX_PROMPT_CHARS) { result.textContent = 'The exact prompt for approval is too long.'; result.className = 'error'; (tuningToggle.checked ? tuningTextarea : textarea).focus(); return; }
         const revisionRequest = revisionField.value;
         if (action === 'revision' && !revisionRequest.trim()) { result.textContent = 'Enter a revision request before submitting.'; result.className = 'error'; revisionField.focus(); return; }
         if (action === 'revision' && revisionRequest.length > MAX_PROMPT_CHARS) { result.textContent = 'The revision request is too long.'; result.className = 'error'; revisionField.focus(); return; }
         submitted = true; setButtons(true); result.textContent = 'Sending review action\u2026'; result.className = '';
         let message;
         if (action === 'cancel') {
-          message = 'RESTRUCTURE_ACTION: CANCEL\\nREVIEW_ID: ' + reviewSnapshot.reviewId;
+          message = 'RESTRUCTURE_ACTION: CANCEL';
         } else if (action === 'revision') {
-          message = 'RESTRUCTURE_ACTION: REQUEST_REVISION\\nREVIEW_ID: ' + reviewSnapshot.reviewId + '\\nBASE_PROMPT_VERSION: ' + String(reviewSnapshot.version) + '\\nREVISION_REQUEST_BEGIN\\n' + revisionRequest + '\\nREVISION_REQUEST_END';
+          message = 'RESTRUCTURE_ACTION: REQUEST_REVISION\\nBASE_PROMPT_VERSION: ' + String(reviewSnapshot.version) + '\\nREVISION_REQUEST_BEGIN\\n' + revisionRequest + '\\nREVISION_REQUEST_END';
         } else {
-          const prompt = action === 'original' ? reviewSnapshot.originalPrompt : edited;
+          const prompt = action === 'original' ? reviewSnapshot.originalPrompt : composedPrompt;
           const hash = await utf8Hash(prompt);
-          message = action === 'original' ? 'RESTRUCTURE_ACTION: USE_ORIGINAL\\nREVIEW_ID: ' + reviewSnapshot.reviewId + '\\nORIGINAL_REQUEST_SHA256: ' + hash : 'RESTRUCTURE_ACTION: APPROVE_AND_RUN\\nREVIEW_ID: ' + reviewSnapshot.reviewId + '\\nPROMPT_VERSION: ' + String(reviewSnapshot.version) + '\\nAPPROVED_PROMPT_SHA256: ' + hash + '\\nAPPROVED_PROMPT_BEGIN\\n' + prompt + '\\nAPPROVED_PROMPT_END';
+          message = action === 'original' ? 'RESTRUCTURE_ACTION: USE_ORIGINAL\\nORIGINAL_REQUEST_SHA256: ' + hash : 'RESTRUCTURE_ACTION: APPROVE_AND_RUN\\nPROMPT_VERSION: ' + String(reviewSnapshot.version) + '\\nAPPROVED_PROMPT_SHA256: ' + hash + '\\nAPPROVED_PROMPT_BEGIN\\n' + prompt + '\\nAPPROVED_PROMPT_END';
         }
         try {
           if (isParentBridge() && bridgeReady) {
@@ -21653,6 +21683,7 @@ var prompt_review_default = `<!doctype html>
       document.getElementById('original').addEventListener('click', () => send('original'));
       document.getElementById('cancel').addEventListener('click', () => send('cancel'));
       textarea.addEventListener('input', () => renderPromptPreview(textarea.value));
+      tuningToggle.addEventListener('change', updateTuningVisibility);
       const initializeBridge = async () => {
         let retryCount = 0;
         while (!appTornDown) {
@@ -21735,7 +21766,7 @@ async function createRestructureServer() {
     "render_prompt_review",
     {
       title: "Render Restructure review",
-      description: "Validate and render a closed-world Restructure review. This tool never executes or sends the reviewed prompt.",
+      description: "Validate and render a closed-world Restructure review whose optimized and behaviour-tuning prompts were generated by the host. This tool never calls a model, executes, or sends the reviewed prompt.",
       inputSchema: renderPromptReviewInputSchema,
       outputSchema: renderPromptReviewOutputSchema,
       annotations: {

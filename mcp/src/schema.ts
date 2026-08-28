@@ -41,15 +41,16 @@ export const operationalImpactSchema = z.object({
 }).strict();
 
 export const promptReviewSchema = z.object({
-  review_id: z.string()
-    .min(1, 'must be nonempty')
-    .max(200)
-    .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/, 'must be a single-line opaque token'),
   version: z.number().int().positive(),
   target: z.enum(['chatgpt', 'codex', 'current-host']),
   mode: z.enum(['minimal', 'balanced', 'strict']),
   original_prompt: z.string().min(1, 'must be nonempty').max(MAX_PROMPT_CHARS),
   optimized_prompt: z.string().min(1, 'must be nonempty').max(MAX_PROMPT_CHARS),
+  behaviour_tuning_prompt: z.string()
+    .min(1, 'must be nonempty')
+    .max(MAX_PROMPT_CHARS)
+    .describe('Request-tailored model role and working-style guidance generated alongside the optimized prompt without changing scope, facts, permissions, safety, or approval requirements.')
+    .optional(),
   assumptions: assumptionsSchema,
   meaningful_changes: boundedList,
   applied_user_instructions: z.array(appliedInstructionSchema).max(MAX_LIST_ITEMS),

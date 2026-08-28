@@ -25,8 +25,14 @@ test('review UI uses textContent/value and does not inject markup or use externa
 });
 
 test('UI has visible keyboard-usable controls, labels, focus handling, and duplicate guard', () => {
-  for (const id of ['optimized-prompt', 'revision-request', 'approve', 'revision', 'original', 'cancel', 'result']) assert.match(html, new RegExp(`id="${id}"`));
+  for (const id of ['optimized-prompt', 'behaviour-tuning-option', 'behaviour-tuning-enabled', 'behaviour-tuning-controls', 'behaviour-tuning-prompt', 'revision-request', 'approve', 'revision', 'original', 'cancel', 'result']) assert.match(html, new RegExp(`id="${id}"`));
   assert.match(html, /label for="optimized-prompt"/);
+  assert.match(html, /label for="behaviour-tuning-enabled"/);
+  assert.match(html, /label for="behaviour-tuning-prompt"/);
+  assert.match(html, /type="checkbox" id="behaviour-tuning-enabled"/);
+  assert.match(html, /id="behaviour-tuning-option"[^>]* hidden/);
+  assert.match(html, /id="behaviour-tuning-controls"[^>]* hidden/);
+  assert.match(html, /aria-describedby="behaviour-tuning-help"/);
   assert.match(html, /focus-visible/);
   assert.match(html, /aria-live="polite"/);
   assert.match(html, /let submitted = false/);
@@ -41,7 +47,6 @@ test('UI has visible keyboard-usable controls, labels, focus handling, and dupli
   assert.match(html, /let nextRequestId = 1/);
   assert.match(html, /const pendingRequests = new Map\(\)/);
   assert.match(html, /pendingRequests\.has\(data\.id\)/);
-  assert.match(html, /review_id/);
   assert.match(html, /assumptionsNode\.replaceChildren\(\)/);
   assert.match(html, /result\.textContent = '';\s*result\.className = '';/);
   assert.match(html, /role: 'user'/);
@@ -84,14 +89,18 @@ test('UI retries only initialization and never automatically resends an action',
   assert.match(html, /if \(appTornDown\) return;\s*submitted = false;/s);
 });
 
-test('optimized prompt has a safe structured preview while the exact editor remains authoritative', () => {
+test('optimized prompt keeps the structured read view and hides its editor until edit is expanded', () => {
+  assert.match(html, /<h2>Optimized prompt<\/h2>/);
   assert.match(html, /id="optimized-prompt-preview"/);
+  assert.match(html, /<details class="editor-details">\s*<summary>Edit exact prompt<\/summary>[\s\S]*?<textarea id="optimized-prompt"/);
+  assert.doesNotMatch(html, /id="composed-prompt"/);
   assert.match(html, /const renderPromptPreview = \(value\) =>/);
   assert.match(html, /document\.createElement\('h3'\)/);
   assert.match(html, /document\.createElement\(listType\)/);
   assert.match(html, /document\.createElement\('li'\)/);
   assert.match(html, /item\.textContent =/);
   assert.match(html, /renderPromptPreview\(textarea\.value\)/);
+  assert.match(html, /const composePrompt = \(\) =>/);
   assert.match(html, /textarea\.addEventListener\('input', \(\) => renderPromptPreview\(textarea\.value\)\)/);
   assert.match(html, /const edited = textarea\.value/);
   assert.match(html, /class="prompt-editor"/);

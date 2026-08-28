@@ -63,10 +63,10 @@ after approval.
 
 ## An approval action is rejected
 
-Check that the review ID and prompt version are from the active review and that
-the approved body is present exactly once. A stale review, mismatched hash, or
-malformed envelope must be rejected. Start a new review rather than editing a
-previous action message.
+Check that the prompt version is from the active review and that the approved
+body is present exactly once. A stale review, mismatched hash, or malformed
+envelope must be rejected. Start a new review rather than editing a previous
+action message.
 
 ## The output is a paragraph
 

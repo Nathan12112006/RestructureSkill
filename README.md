@@ -13,6 +13,8 @@ Version 1.0.0 includes:
 - Exact approval, revision, original-request, and cancellation actions.
 - Numbered sections for non-trivial optimized prompts, so the result stays
   readable and copyable.
+- Optional request-tailored behaviour tuning, shown and editable in the MCP card
+  only after the user enables it.
 
 The repository does not provide global middleware. A user must invoke the
 skill explicitly, or manually add one of the generated host-instruction
@@ -45,6 +47,17 @@ payloads, does not log raw prompts, and does not execute the underlying task.
 The bundled server has no production service, database, or account system.
 There is no profile storage.
 
+For MCP reviews, the host model generates a request-tailored behaviour-tuning
+addition alongside every optimized prompt so the card has the value ready. A
+teaching request might receive a teacher-oriented role, while an implementation
+request might receive an expert-engineer-oriented role. These are
+request-tailored generated outcomes, not fixed plugin copy or a magic phrase. The
+MCP server receives the generated `behaviour_tuning_prompt` separately and
+never generates it itself. The host derives role, expertise, and working style
+from task semantics and allowed visible context; it does not invent facts or
+credentials, broaden scope or permissions, change output requirements, weaken
+safety/native confirmations, or request hidden reasoning.
+
 Prompt approval confirms wording and intent. Native ChatGPT, Codex, connector,
 filesystem, network, and destructive-operation confirmations remain separate.
 
@@ -60,7 +73,7 @@ For Codex use
 
 The assistant-visible review always presents the original request verbatim, the
 optimized prompt, assumptions, meaningful changes, applied user-visible
-instructions, operational impact, a review ID, and a positive prompt version.
+instructions, operational impact, and a positive prompt version.
 An editable card or resource link may also appear when the host exposes MCP UI;
 it is optional and never replaces the visible review. The review then stops.
 
@@ -71,8 +84,9 @@ Choose one action in a new message:
 - Use original uses the original request verbatim.
 - Cancel stops without performing the underlying task.
 
-Questions and edits are not approval. Stale or mismatched action envelopes
-are rejected. Whitespace and line breaks in approved text are preserved.
+Questions and edits are not approval. Stale, unavailable, or malformed action
+envelopes are rejected. Whitespace and line breaks in approved text are
+preserved.
 
 For one request only, the exact phrase below bypasses Restructure review.
 It does not change later requests:
@@ -158,6 +172,22 @@ the renderer is available, the host still emits that same complete visible
 text after the renderer call because some hosts hide tool output. In text-only
 mode no review payload is sent to the MCP server. This path does not execute
 the task automatically.
+
+Behaviour tuning is off by default in text-only mode. The host generates,
+shows, and appends a request-tailored addition only when the user explicitly asks
+for behaviour tuning in the current request; silence means omit it. The
+choice and any edits are transient to that review and are not persisted or
+carried into later requests. If the user has not opted in, the text fallback
+contains only the optimized prompt.
+
+When the MCP card is available, each new review starts with behaviour tuning
+unchecked and the addition hidden. Checking the control reveals the separate
+editable `behaviour_tuning_prompt`; approval composes the exact checked value
+after the optimized prompt. Unchecking excludes it without changing the
+underlying request-tailored value for that rendered review.
+
+Legacy v1 review payloads without `behaviour_tuning_prompt` remain valid and
+use the optimized-only card with no tuning control.
 
 ## Automatic MCP review card
 

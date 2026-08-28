@@ -1,6 +1,6 @@
 {
   "name": "restructure",
-  "version": "1.0.0+codex.20260828020710",
+  "version": "1.0.0+codex.20260828094742",
   "description": "Turn ordinary requests into clear ChatGPT or Codex prompts, show assumptions and meaningful changes, and require approval before execution.",
   "author": {
     "name": "Restructure contributors"

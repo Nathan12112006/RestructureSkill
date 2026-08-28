@@ -23,13 +23,19 @@
     .prompt-preview ul, .prompt-preview ol { margin: .35rem 0 .8rem; padding-left: 1.5rem; }
     .editor-details { margin-top: 1rem; }
     .editor-details label { display: block; margin: .55rem 0 .35rem; }
+    .toggle-row { display: flex; align-items: flex-start; gap: .55rem; margin-top: 1rem; }
+    .toggle-row input { flex: 0 0 auto; margin-top: .25rem; }
+    .tuning-editor { margin-top: .75rem; }
+    .tuning-editor label { display: block; margin-bottom: .35rem; }
+    .tuning-editor textarea { min-height: 8rem; }
+    [hidden] { display: none !important; }
     details { margin-top: .75rem; }
     ul { margin: .35rem 0 .7rem; padding-left: 1.4rem; }
     li { overflow-wrap: anywhere; }
     .warning { border-left: .35rem solid #b45309; padding: .65rem .8rem; background: color-mix(in srgb, #b45309 15%, Canvas); }
     .actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1rem; }
     button { min-height: 2.5rem; padding: .55rem .85rem; border: 1px solid ButtonBorder; border-radius: .35rem; background: ButtonFace; color: ButtonText; font: inherit; cursor: pointer; }
-    button:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 3px solid Highlight; outline-offset: 2px; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 3px solid Highlight; outline-offset: 2px; }
     button:disabled { cursor: not-allowed; opacity: .55; }
     #result { min-height: 1.5rem; margin-top: .75rem; }
     .error { color: #b91c1c; }
@@ -43,7 +49,6 @@
       <div><span class="label">Target</span><span id="target"></span></div>
       <div><span class="label">Mode</span><span id="mode"></span></div>
       <div><span class="label">Prompt version</span><span id="version"></span></div>
-      <div><span class="label">Review ID</span><span id="review-id"></span></div>
       <div><span class="label">Revision count</span><span id="revision-count"></span></div>
     </section>
 
@@ -56,6 +61,17 @@
         <label for="optimized-prompt">Edit the exact prompt before choosing an action. The preview updates without changing this text.</label>
         <textarea id="optimized-prompt" class="prompt-editor" spellcheck="false"></textarea>
       </details>
+      <div id="behaviour-tuning-option" class="toggle-row" hidden>
+        <input type="checkbox" id="behaviour-tuning-enabled" aria-describedby="behaviour-tuning-help">
+        <div>
+          <label for="behaviour-tuning-enabled">Add behaviour tuning</label>
+          <small id="behaviour-tuning-help">Off by default. Enable it to review, edit, and append the generated request-tailored model behaviour.</small>
+        </div>
+      </div>
+      <div id="behaviour-tuning-controls" class="tuning-editor" hidden>
+        <label for="behaviour-tuning-prompt">Behaviour-tuning prompt</label>
+        <textarea id="behaviour-tuning-prompt" class="prompt-editor" spellcheck="false" aria-describedby="behaviour-tuning-help"></textarea>
+      </div>
     </section>
 
     <section class="panel">
@@ -106,16 +122,11 @@
       const MAX_PROMPT_CHARS = 50000;
       const MAX_THREAD_RESUME_RETRIES = 1;
       const THREAD_RESUME_ERROR_MARKERS = ['thread not found', 'needs_resume', 'no rollout found', 'not loaded'];
-      const REVIEW_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
       const output = window.openai && window.openai.toolOutput;
       const structured = output && output.structuredContent ? output.structuredContent : output;
       const isValidReview = (candidate) => Boolean(
         candidate
         && typeof candidate === 'object'
-        && typeof candidate.review_id === 'string'
-        && candidate.review_id.length > 0
-        && candidate.review_id.length <= 200
-        && REVIEW_ID_PATTERN.test(candidate.review_id)
         && Number.isInteger(candidate.version)
         && candidate.version > 0
         && typeof candidate.original_prompt === 'string'
@@ -124,16 +135,24 @@
         && typeof candidate.optimized_prompt === 'string'
         && candidate.optimized_prompt.length > 0
         && candidate.optimized_prompt.length <= MAX_PROMPT_CHARS
+        && (candidate.behaviour_tuning_prompt === undefined
+          || (typeof candidate.behaviour_tuning_prompt === 'string'
+            && candidate.behaviour_tuning_prompt.length > 0
+            && candidate.behaviour_tuning_prompt.length <= MAX_PROMPT_CHARS))
       );
       let review = structured && structured.review;
       if (!isValidReview(review)) review = null;
-      let mountedReviewIdentity = review ? { reviewId: review.review_id, version: review.version } : null;
+      let reviewMounted = Boolean(review);
       let bridgeReady = false;
       let legacyFallbackReady = false;
       let appTornDown = false;
       const result = document.getElementById('result');
       const textarea = document.getElementById('optimized-prompt');
       const promptPreview = document.getElementById('optimized-prompt-preview');
+      const tuningOption = document.getElementById('behaviour-tuning-option');
+      const tuningToggle = document.getElementById('behaviour-tuning-enabled');
+      const tuningControls = document.getElementById('behaviour-tuning-controls');
+      const tuningTextarea = document.getElementById('behaviour-tuning-prompt');
       const revisionField = document.getElementById('revision-request');
       const setText = (id, value) => { const node = document.getElementById(id); if (node) node.textContent = value == null ? '' : String(value); };
       const renderPromptPreview = (value) => {
@@ -185,6 +204,12 @@
           promptPreview.append(empty);
         }
       };
+      const composePrompt = () => tuningToggle.checked
+        ? textarea.value + '\n\n' + tuningTextarea.value
+        : textarea.value;
+      const updateTuningVisibility = () => {
+        tuningControls.hidden = !tuningToggle.checked;
+      };
       const addList = (id, items, emptyLabel) => {
         const node = document.getElementById(id);
         if (!node) return;
@@ -200,8 +225,13 @@
         result.textContent = '';
         result.className = '';
         setText('target', review.target); setText('mode', review.mode); setText('version', review.version);
-        setText('review-id', review.review_id); setText('revision-count', review.revision_count);
+        setText('revision-count', review.revision_count);
         textarea.value = typeof review.optimized_prompt === 'string' ? review.optimized_prompt : '';
+        const tuningAvailable = typeof review.behaviour_tuning_prompt === 'string';
+        tuningTextarea.value = tuningAvailable ? review.behaviour_tuning_prompt : '';
+        tuningToggle.checked = false;
+        tuningOption.hidden = !tuningAvailable;
+        updateTuningVisibility();
         renderPromptPreview(textarea.value);
         setText('original-prompt', review.original_prompt);
         const groups = review.assumptions || {};
@@ -244,15 +274,15 @@
         for (const candidate of candidates) {
           if (!candidate || typeof candidate !== 'object') continue;
           if (candidate.review && typeof candidate.review === 'object') return candidate.review;
-          if (typeof candidate.review_id === 'string') return candidate;
+          if (typeof candidate.optimized_prompt === 'string') return candidate;
         }
         return null;
       };
       const mountReviewOnce = (incoming) => {
         if (!isValidReview(incoming)) return false;
-        if (mountedReviewIdentity) return false;
+        if (reviewMounted) return false;
         review = incoming;
-        mountedReviewIdentity = { reviewId: incoming.review_id, version: incoming.version };
+        reviewMounted = true;
         render();
         if (!submitted && !appTornDown && (bridgeReady || (legacyFallbackReady && hasLegacyMessageBridge()))) setButtons(false);
         return true;
@@ -357,25 +387,29 @@
         if (appTornDown) return;
         if (!isValidReview(review)) { result.textContent = 'Review data is invalid; no review action was sent.'; result.className = 'error'; setButtons(true); return; }
         const reviewSnapshot = {
-          reviewId: review.review_id,
           version: review.version,
           originalPrompt: review.original_prompt,
         };
         const edited = textarea.value;
         if (edited.length > MAX_PROMPT_CHARS) { result.textContent = 'The optimized prompt is too long.'; result.className = 'error'; textarea.focus(); return; }
+        const tuning = tuningTextarea.value;
+        if (action === 'approve' && tuningToggle.checked && tuning.length > MAX_PROMPT_CHARS) { result.textContent = 'The behaviour-tuning prompt is too long.'; result.className = 'error'; tuningTextarea.focus(); return; }
+        if (action === 'approve' && tuningToggle.checked && !tuning.trim()) { result.textContent = 'Enter a behaviour-tuning prompt or turn behaviour tuning off.'; result.className = 'error'; tuningTextarea.focus(); return; }
+        const composedPrompt = composePrompt();
+        if (action === 'approve' && composedPrompt.length > MAX_PROMPT_CHARS) { result.textContent = 'The exact prompt for approval is too long.'; result.className = 'error'; (tuningToggle.checked ? tuningTextarea : textarea).focus(); return; }
         const revisionRequest = revisionField.value;
         if (action === 'revision' && !revisionRequest.trim()) { result.textContent = 'Enter a revision request before submitting.'; result.className = 'error'; revisionField.focus(); return; }
         if (action === 'revision' && revisionRequest.length > MAX_PROMPT_CHARS) { result.textContent = 'The revision request is too long.'; result.className = 'error'; revisionField.focus(); return; }
         submitted = true; setButtons(true); result.textContent = 'Sending review action…'; result.className = '';
         let message;
         if (action === 'cancel') {
-          message = 'RESTRUCTURE_ACTION: CANCEL\nREVIEW_ID: ' + reviewSnapshot.reviewId;
+          message = 'RESTRUCTURE_ACTION: CANCEL';
         } else if (action === 'revision') {
-          message = 'RESTRUCTURE_ACTION: REQUEST_REVISION\nREVIEW_ID: ' + reviewSnapshot.reviewId + '\nBASE_PROMPT_VERSION: ' + String(reviewSnapshot.version) + '\nREVISION_REQUEST_BEGIN\n' + revisionRequest + '\nREVISION_REQUEST_END';
+          message = 'RESTRUCTURE_ACTION: REQUEST_REVISION\nBASE_PROMPT_VERSION: ' + String(reviewSnapshot.version) + '\nREVISION_REQUEST_BEGIN\n' + revisionRequest + '\nREVISION_REQUEST_END';
         } else {
-          const prompt = action === 'original' ? reviewSnapshot.originalPrompt : edited;
+          const prompt = action === 'original' ? reviewSnapshot.originalPrompt : composedPrompt;
           const hash = await utf8Hash(prompt);
-          message = action === 'original' ? 'RESTRUCTURE_ACTION: USE_ORIGINAL\nREVIEW_ID: ' + reviewSnapshot.reviewId + '\nORIGINAL_REQUEST_SHA256: ' + hash : 'RESTRUCTURE_ACTION: APPROVE_AND_RUN\nREVIEW_ID: ' + reviewSnapshot.reviewId + '\nPROMPT_VERSION: ' + String(reviewSnapshot.version) + '\nAPPROVED_PROMPT_SHA256: ' + hash + '\nAPPROVED_PROMPT_BEGIN\n' + prompt + '\nAPPROVED_PROMPT_END';
+          message = action === 'original' ? 'RESTRUCTURE_ACTION: USE_ORIGINAL\nORIGINAL_REQUEST_SHA256: ' + hash : 'RESTRUCTURE_ACTION: APPROVE_AND_RUN\nPROMPT_VERSION: ' + String(reviewSnapshot.version) + '\nAPPROVED_PROMPT_SHA256: ' + hash + '\nAPPROVED_PROMPT_BEGIN\n' + prompt + '\nAPPROVED_PROMPT_END';
         }
         try {
           if (isParentBridge() && bridgeReady) {
@@ -399,6 +433,7 @@
       document.getElementById('original').addEventListener('click', () => send('original'));
       document.getElementById('cancel').addEventListener('click', () => send('cancel'));
       textarea.addEventListener('input', () => renderPromptPreview(textarea.value));
+      tuningToggle.addEventListener('change', updateTuningVisibility);
       const initializeBridge = async () => {
         let retryCount = 0;
         while (!appTornDown) {

@@ -72,16 +72,16 @@ When intent is genuinely unclear, do not execute.
 ## Versioning
 
 Every presented review has a positive, monotonically increasing version within
-the current workflow and an opaque review ID. A user may approve the active
-version or explicitly identify an earlier version that remains available in
-the active review history. A stale or unavailable version is rejected. The
-exact text shown for that version is authoritative; the canonical protocol may
-also include a lowercase SHA-256 or `UNAVAILABLE`.
+the current workflow. A user may approve the active version or explicitly
+identify an earlier version that remains available in the active review
+history. A stale or unavailable version is rejected. The exact text shown for
+that version is authoritative; the canonical protocol may also include a
+lowercase SHA-256 or `UNAVAILABLE`.
 
 At the execution seam, compare the exact operative prompt with the exact text
 approved by the user. If an approved hash is available, compare it with the
-execution SHA-256 as well. Record the review ID, prompt version, approved hash,
-and execution hash in conversation state when the host supports it. Hashing is
+execution SHA-256 as well. Record the prompt version, approved hash, and
+execution hash in conversation state when the host supports it. Hashing is
 optional, but exact string equality is not.
 
 If either comparison fails, do not execute and do not return an executable

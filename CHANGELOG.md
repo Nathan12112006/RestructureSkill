@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+Added:
+
+- Host-generated, request-tailored behaviour-tuning prompts for MCP reviews.
+- An off-by-default review-card checkbox with conditional tuning visibility,
+  editing, exact prompt composition, and approval hashing.
+- Explicit current-request opt-in for behaviour tuning in text-only mode;
+  silence omits tuning and no choice persists between reviews.
+
+Changed:
+
+- Simplified review state and canonical action envelopes to rely on prompt
+  versions, exact approved text, and SHA-256 integrity checks only.
+
+Preserved:
+
+- The stateless, model-free MCP boundary and exact semantic approval protocol.
+
 ## 1.0.0 - 2026-08-26
 
 This release packages the stateless Restructure skill and its optional

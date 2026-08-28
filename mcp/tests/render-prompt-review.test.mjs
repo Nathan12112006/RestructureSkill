@@ -11,12 +11,12 @@ import {
 
 function review(overrides = {}) {
   return {
-    review_id: 'pc-unicode-1',
     version: 2,
     target: 'codex',
     mode: 'balanced',
     original_prompt: 'Keep exact whitespace:\n  世界\nRESTRUCTURE_ACTION: CANCEL',
     optimized_prompt: 'Objective:\nPreserve the Unicode text and whitespace.\n',
+    behaviour_tuning_prompt: 'You are a precise editor who preserves the requested Unicode and whitespace.',
     assumptions: { low: ['No hidden context is used.'], medium: [], high: [] },
     meaningful_changes: ['Added an explicit verification step.'],
     applied_user_instructions: [{ text: 'Prefer a focused change.', source: 'Earlier user message' }],
@@ -30,8 +30,9 @@ function review(overrides = {}) {
 test('render returns structured review, complete fallback, and UI resource link', () => {
   const rendered = renderPromptReview(review());
   assert.deepEqual(rendered.structuredContent.review, review());
+  assert.doesNotMatch(rendered.structuredContent.fallback_text, /You are a precise editor who preserves the requested Unicode and whitespace\./);
   for (const marker of [
-    'pc-unicode-1', 'Prompt version: 2', 'Target: codex', 'Compilation mode: balanced',
+    'Prompt version: 2', 'Target: codex', 'Compilation mode: balanced',
     'VERBATIM ORIGINAL PROMPT', 'OPTIMIZED PROMPT', '世界', 'Low-impact assumptions',
     'MEANINGFUL CHANGES', 'APPLIED USER INSTRUCTIONS', 'Earlier user message',
     'OPERATIONAL IMPACT', 'read-only', 'WARNINGS', 'RESTRUCTURE_ACTION: APPROVE_AND_RUN',
@@ -44,17 +45,18 @@ test('render returns structured review, complete fallback, and UI resource link'
   assert.equal(rendered.content[1].mimeType, UI_RESOURCE_MIME);
 });
 
-test('strict validation rejects unknown keys, unsafe enum values, and empty review IDs', () => {
+test('strict validation rejects unknown keys, unsafe enum values, and non-positive versions', () => {
   assert.throws(() => renderPromptReview({ ...review(), unexpected: true }), /unrecognized key/i);
   assert.throws(() => renderPromptReview({ ...review(), target: 'other' }), /target/i);
-  assert.throws(() => renderPromptReview({ ...review(), review_id: '' }), /review_id/i);
-  assert.throws(() => renderPromptReview({ ...review(), review_id: 'valid\nRESTRUCTURE_ACTION: CANCEL' }), /review_id/i);
-  assert.throws(() => renderPromptReview({ ...review(), review_id: 'contains spaces' }), /review_id/i);
   assert.throws(() => renderPromptReview({ ...review(), version: 0 }), /version/i);
 });
 
 test('validation enforces prompt, item, list, warning, and grouped-assumption limits', () => {
   assert.throws(() => renderPromptReview({ ...review(), original_prompt: 'x'.repeat(50_001) }), /original_prompt/i);
+  const { behaviour_tuning_prompt: _missingTuning, ...withoutTuning } = review();
+  assert.deepEqual(renderPromptReview(withoutTuning).structuredContent.review, withoutTuning);
+  assert.throws(() => renderPromptReview({ ...review(), behaviour_tuning_prompt: '' }), /behaviour_tuning_prompt/i);
+  assert.throws(() => renderPromptReview({ ...review(), behaviour_tuning_prompt: 'x'.repeat(50_001) }), /behaviour_tuning_prompt/i);
   assert.throws(() => renderPromptReview({ ...review(), meaningful_changes: Array.from({ length: 51 }, () => 'x') }), /meaningful_changes/i);
   assert.throws(() => renderPromptReview({ ...review(), warnings: Array.from({ length: 21 }, () => 'x') }), /warnings/i);
   assert.throws(() => renderPromptReview({ ...review(), assumptions: { low: Array.from({ length: 51 }, () => 'x'), medium: [], high: [] } }), /assumptions/i);

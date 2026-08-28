@@ -4,16 +4,14 @@ The text protocol is a deterministic fallback for hosts that cannot render a
 review control. Natural-language decisions remain supported; a host may use
 these envelopes when it needs an unambiguous action message.
 
-Every review has an opaque `REVIEW_ID` and a positive `PROMPT_VERSION`. The
-review ID is generated for the review and must match exactly. A review remains
-pending until one of the four actions below is accepted. The host must retain
-the exact prompt text associated with each available version.
+Every review has a positive `PROMPT_VERSION`. A review remains pending until
+one of the four actions below is accepted. The host must retain the exact
+prompt text associated with each available version.
 
 ## Approve and run
 
 ```text
 RESTRUCTURE_ACTION: APPROVE_AND_RUN
-REVIEW_ID: <opaque-id>
 PROMPT_VERSION: <positive integer>
 APPROVED_PROMPT_SHA256: <lowercase hash or UNAVAILABLE>
 APPROVED_PROMPT_BEGIN
@@ -36,7 +34,6 @@ stored body for that version.
 
 ```text
 RESTRUCTURE_ACTION: REQUEST_REVISION
-REVIEW_ID: <opaque-id>
 BASE_PROMPT_VERSION: <positive integer>
 REVISION_REQUEST_BEGIN
 <requested changes>
@@ -51,7 +48,6 @@ version.
 
 ```text
 RESTRUCTURE_ACTION: USE_ORIGINAL
-REVIEW_ID: <opaque-id>
 ORIGINAL_REQUEST_SHA256: <lowercase hash or UNAVAILABLE>
 ```
 
@@ -62,16 +58,15 @@ original request exactly.
 
 ```text
 RESTRUCTURE_ACTION: CANCEL
-REVIEW_ID: <opaque-id>
 ```
 
-Cancellation ends the review. Later actions for that review cannot resurrect
-it; the host must create a new review with a new review ID.
+Cancellation ends the review. Later actions cannot resurrect it; the host
+must create a new review.
 
 ## Validation and state rules
 
-- Reject malformed envelopes, missing bodies, non-positive versions, unknown
-  actions, and mismatched review IDs.
+- Reject malformed envelopes, missing bodies, non-positive versions, and
+  unknown actions.
 - Reject an unavailable or stale version. An explicitly identified earlier
   version may be approved only while it remains available in the active review
   history and its exact body still matches.
@@ -91,10 +86,10 @@ is mandatory even when hashing is unavailable; whitespace and line breaks are
 never normalized.
 
 When conversation state is available, retain only these review facts for the
-current workflow: review ID, prompt version, approved hash, and execution
-hash. Do not persist approved prompt content as profile data. If text or hash
-verification fails, return a clear integrity error with no executable prompt,
-do not execute, re-present the review, and require a new approval.
+current workflow: prompt version, approved hash, and execution hash. Do not
+persist approved prompt content as profile data. If text or hash verification
+fails, return a clear integrity error with no executable prompt, do not
+execute, re-present the review, and require a new approval.
 
 Natural-language options remain valid: `Approve and run`, `Edit: <requested
 changes>`, `Use original`, and `Cancel`. The protocol is an additional exact

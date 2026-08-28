@@ -29,7 +29,6 @@ export function renderTextFallback(review: PromptReview): string {
   const changes = review.meaningful_changes.length ? review.meaningful_changes.map((item) => `- ${item}`).join('\n') : '(none)';
   return [
     'RESTRUCTURE REVIEW',
-    `Review ID: ${review.review_id}`,
     `Prompt version: ${review.version}`,
     `Target: ${review.target}`,
     `Compilation mode: ${review.mode}`,
@@ -68,10 +67,9 @@ export function renderTextFallback(review: PromptReview): string {
 }
 
 export function actionMessage(action: 'approve' | 'revision' | 'original' | 'cancel', review: PromptReview, editedPrompt?: string): string {
-  if (action === 'cancel') return [ACTIONS.cancel, `REVIEW_ID: ${review.review_id}`].join('\n');
+  if (action === 'cancel') return ACTIONS.cancel;
   if (action === 'revision') return [
     ACTIONS.revision,
-    `REVIEW_ID: ${review.review_id}`,
     `BASE_PROMPT_VERSION: ${review.version}`,
     'REVISION_REQUEST_BEGIN',
     editedPrompt ?? '',
@@ -80,14 +78,12 @@ export function actionMessage(action: 'approve' | 'revision' | 'original' | 'can
   if (action === 'original') {
     return [
       ACTIONS.original,
-      `REVIEW_ID: ${review.review_id}`,
       `ORIGINAL_REQUEST_SHA256: ${promptHash(review.original_prompt)}`,
     ].join('\n');
   }
   const prompt = editedPrompt ?? review.optimized_prompt;
   return [
     ACTIONS.approve,
-    `REVIEW_ID: ${review.review_id}`,
     `PROMPT_VERSION: ${review.version}`,
     `APPROVED_PROMPT_SHA256: ${promptHash(prompt)}`,
     'APPROVED_PROMPT_BEGIN',
