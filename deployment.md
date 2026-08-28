@@ -36,8 +36,15 @@ root and remain inside that root.
 Consumers clone or check out the Git repository, register its repository root
 as a local marketplace source with their Codex host, install
 restructure@restructure-repo, restart the host, and start a new
-conversation. ChatGPT desktop installation depends on the app's local
-marketplace flow and remains a host check rather than a repository deployment.
+conversation. If a running local MCP process has the plugin cache open, fully
+quit every Codex host that loaded it before reinstalling.
+
+This checkout does not deploy an MCP connection for ChatGPT Chat or Work.
+ChatGPT MCP use requires a public HTTPS endpoint or Secure MCP Tunnel,
+registration in ChatGPT developer mode, and an account-specific `.app.json`
+mapping in the plugin package. Those are external deployment and account setup
+steps outside this local, no-network release. A ChatGPT skill-only installation
+and the complete text review remain usable without the MCP card.
 
 ## Rollback
 

@@ -8,7 +8,8 @@ Version 1.0.0 includes:
 
 - One focused Restructure skill for ChatGPT and Codex.
 - An optional local MCP Apps renderer with an editable review card.
-- A complete text review when the renderer or custom UI is unavailable.
+- A complete assistant-visible text review on every review, with an optional
+  editable card or resource link when the host exposes MCP UI.
 - Exact approval, revision, original-request, and cancellation actions.
 - Numbered sections for non-trivial optimized prompts, so the result stays
   readable and copyable.
@@ -19,7 +20,17 @@ snippets to a selected project or repository.
 
 ## Important reminders
 
-This version has only been tests on the ChatGPT App. It likely works with Codex CLI but does not work on codex extensions. 
+Restructure is intentionally opt-in. Invoke it from the plugin picker, with
+`@Restructure` in ChatGPT, or with `$restructure` in Codex. It does not take
+over unrelated prompts in an ordinary conversation.
+
+The bundled `.mcp.json` starts a local stdio MCP server for Codex surfaces that
+load repository plugins. ChatGPT Chat and Work can use installed plugins, but
+ChatGPT cannot connect directly to that local stdio process. Its MCP card
+requires a separately registered public HTTPS or Secure MCP Tunnel connection,
+plus an `.app.json` mapping. This local release includes neither a remote
+endpoint nor that account-specific mapping, so its text review is the supported
+ChatGPT path until that connection is configured.
 
 ## Important boundaries
 
@@ -43,11 +54,15 @@ In a supported ChatGPT host, invoke the skill from the plugin picker or with:
 
     @Restructure
 
-    Fix the login issue and do not over-engineer it.
+For Codex use
 
-The review presents the original request verbatim, the optimized prompt,
-assumptions, meaningful changes, applied user-visible instructions,
-operational impact, a review ID, and a positive prompt version. It then stops.
+    /Restructure
+
+The assistant-visible review always presents the original request verbatim, the
+optimized prompt, assumptions, meaningful changes, applied user-visible
+instructions, operational impact, a review ID, and a positive prompt version.
+An editable card or resource link may also appear when the host exposes MCP UI;
+it is optional and never replaces the visible review. The review then stops.
 
 Choose one action in a new message:
 
@@ -76,12 +91,25 @@ the Codex CLI, then install the entry named restructure:
     codex plugin add restructure@restructure-repo
 
 Use the CLI's marketplace/list commands to confirm the entry if your installed
-CLI uses a different local-marketplace prompt. Start a new Codex session after
-installation so the skill and MCP tool are loaded. The local marketplace entry
-uses a relative path to this repository root; it does not download a
-hosted service.
+CLI uses a different local-marketplace prompt. If the CLI and desktop app show
+different marketplaces on Windows, point that PowerShell session at the same
+Codex configuration root before listing or installing:
 
-### Codex in the ChatGPT desktop app
+    $env:CODEX_HOME = "$env:USERPROFILE\.codex"
+    codex plugin marketplace list
+    codex plugin add restructure@restructure-repo
+
+Start a new Codex session after installation so the skill and MCP tool are
+loaded. The local marketplace entry uses a relative path to this repository
+root; it does not download a hosted service.
+
+If install or remove reports that the cached plugin is in use, fully quit every
+Codex desktop, CLI, and IDE-extension process that loaded the plugin before
+retrying. On Windows, the running stdio server keeps its cached directory open,
+so an in-place reinstall cannot safely replace it. Do not delete the cache while
+those processes are running.
+
+### Codex desktop
 
 Use the app's local marketplace/plugin installation flow and select this
 repository root. Install Restructure,
@@ -89,17 +117,23 @@ restart the app if requested, and start a new conversation. The desktop app
 may expose the editable card when MCP Apps are supported; the text review
 remains authoritative.
 
-### ChatGPT desktop
+### ChatGPT Chat and Work
 
-Use the ChatGPT desktop app's local plugin/marketplace installation flow and
-select this repository's marketplace file. The plugin must be installed by
-the host before it can be invoked. ChatGPT web availability and custom UI
-support are not certified by this repository; use the text workflow when the
-plugin picker or card is unavailable.
+After Restructure is available in the Plugins Directory, install it, start a
+new Chat or Work conversation, and invoke `@Restructure`. Merely checking out
+this repository or installing its Codex marketplace entry does not install the
+plugin into ChatGPT.
 
-The Codex IDE extension is untested for this package. This repository makes no
-claim that its plugin picker, MCP server, or inline card is available there.
-Use Codex CLI or Codex in the ChatGPT desktop app for the tested installation path.
+To expose this MCP renderer in ChatGPT, first make the server reachable through
+a public HTTPS Streamable HTTP endpoint or Secure MCP Tunnel, register that
+connection in ChatGPT developer mode, copy its `plugin_asdk_app...` technical
+ID into `.app.json`, and reference that file from the manifest's `apps` field.
+This repository intentionally ships only the local stdio server, so no valid
+account-specific ID can be included here. Use the complete text review when the
+remote connection or card is unavailable.
+
+The Codex IDE extension does not support plugins. Use Codex CLI or Codex
+desktop for the local installation path.
 
 ## Optional automatic setup
 
@@ -119,9 +153,34 @@ skip prompt review for this request bypass remains non-persistent.
 ## Text-only fallback
 
 If MCP Apps, the UI resource, JavaScript, or the host bridge is unavailable,
-the host emits the complete text review and waits for the same actions. In
-text-only mode no review payload is sent to the MCP server. This path does not
-execute the task automatically.
+the host emits the complete text review and waits for the same actions. When
+the renderer is available, the host still emits that same complete visible
+text after the renderer call because some hosts hide tool output. In text-only
+mode no review payload is sent to the MCP server. This path does not execute
+the task automatically.
+
+## Automatic MCP review card
+
+The render tool advertises its versioned review resource through the MCP Apps
+`ui.resourceUri` metadata and the ChatGPT-compatible output template. Supported
+hosts can therefore mount the editable card automatically. The tool also
+returns a `resource_link`, structured review data, and the complete text
+fallback. The assistant-visible text review remains authoritative everywhere.
+
+After the resource loads, the card keeps actions disabled until the MCP Apps
+initialization handshake succeeds. If that standard bridge fails but the host
+exposes its legacy follow-up-message API, the card explicitly switches to that
+compatibility bridge before enabling actions. Only the idempotent initialization
+request may retry once after a transient thread-resume error; review actions are
+never resent automatically. The card also acknowledges host teardown and leaves
+its controls disabled after teardown.
+
+Some Codex Desktop versions have a host-side resume race that can reject the
+initial resource read before it reaches any MCP server. In that case the card
+cannot intercept the failure; wait for the thread to finish resuming and use
+Try again, resend the request, or continue with the complete text review. See
+[OpenAI Codex issue #34195](https://github.com/openai/codex/issues/34195) and
+the troubleshooting guide.
 
 ## Development and release checks
 
@@ -147,8 +206,11 @@ unless you also provide an equivalent build step for consumers.
 
 - This is a local/repository marketplace package, not a hosted production
   service or public directory listing.
-- ChatGPT web, ChatGPT desktop custom UI, and the Codex IDE extension remain
-  untested in this repository's 1.0 release checks.
+- The local stdio MCP is a Codex installation path. ChatGPT MCP rendering needs
+  a registered remote connection and `.app.json`; neither is included here.
+- ChatGPT skill invocation and ChatGPT custom UI remain untested in this
+  repository's 1.0 release checks; the Codex IDE extension does not support
+  plugins.
 - Codex CLI 0.149.0 discovery, one render_prompt_review call, structured
   review output, and stopping before execution were exercised on the installed
   1.0.0+codex.20260826063251 build. No approval was sent.

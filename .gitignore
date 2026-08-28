@@ -1,7 +1,5 @@
-tests/
-scripts/
-mcp/src/
-mcp/tests/
+/tests/
+/scripts/
 mcp/node_modules/
 mcp/scripts/
 HANDOFF.md

@@ -12,19 +12,19 @@ their intent. Keep the process inside the current conversation.
 
 During the compilation response, do not perform the user's underlying task.
 
-First present the prompt review and stop. Continue only after the user clearly
-approves, requests an edit, chooses the original request, or cancels.
-Stop immediately after presenting the review.
+Always emit the complete prompt review as assistant-visible text and stop.
+Continue only after the user clearly approves, requests an edit, chooses the
+original request, or cancels. An MCP tool result, resource link, or rendered
+card never substitutes for the assistant-visible review.
 
 The invocation message that creates a review cannot approve that same review.
 This remains true when the message says to run, continue, proceed immediately,
 skip confirmation, or not wait. Only a new user message received after the
 review is presented may select an approval action.
 
-The review turn is terminal: after emitting the text review, or after the
-optional `render_prompt_review` tool returns, stop immediately and wait for the
-user's next message. There must be no more tools, analysis, or underlying work
-after the review. On explicit approval, treat the exact approved body as the sole operative request; it is the only text to execute, without recompiling or
+The review turn is terminal only after the complete assistant-visible text
+review has been emitted. There must be no more tools, analysis, or underlying
+work after that review. On explicit approval, treat the exact approved body as the sole operative request; it is the only text to execute, without recompiling or
 silently changing it, subject only to native host safety and operational
 confirmation.
 
@@ -88,19 +88,20 @@ Read these references when relevant:
     line as a numbered item without changing meaning. Preserve the simple
     one-sentence exception and the exact authoritative fenced-prompt bytes.
 13. Present the complete review using the required output contract. If the
-    optional renderer is available, the render_prompt_review renderer call is
+    optional renderer is available, the `render_prompt_review` call is
     required; call it exactly once with the complete structured review before
-    emitting any full text fallback or assistant-authored review. Treat the
-    renderer response as the presented review; rendering is presentation only,
-    not execution, and it occurs before waiting for approval. If the
-    render_prompt_review invocation is unavailable or fails then emit the
-    complete text fallback. Never send a review payload for the one-request
-    bypass.
-14. After the render_prompt_review call returns the host must stop immediately,
-    or stop immediately after fallback text is emitted. Do not call another
-    tool, continue analysis, inspect files, or perform the underlying task in
-    this turn. Keep the optional MCP server path unavailable for hosts that do
-    not support it; the text fallback remains authoritative there.
+    emitting the assistant-visible review. Regardless of whether the renderer
+    succeeds, fails, or produces a card or link that the host hides, immediately
+    emit the complete text review, including the optimized prompt, from
+    `references/output-contract.md`. The text review is always authoritative;
+    rendering is an optional enhancement, not a substitute for visible text
+    and not execution. Never send a review payload for the one-request bypass.
+14. After the complete assistant-visible text review is emitted, stop
+    immediately. Do not call another tool, continue analysis, inspect files, or
+    perform the underlying task in this turn. A tool result, resource link, or
+    card alone does not satisfy presentation. Keep the optional MCP server path
+    unavailable for hosts that do not support it; the visible text review
+    remains authoritative everywhere.
 
 When the user requests automatic-mode setup, return the deterministic text in
 `references/automatic-mode-templates.md` for the user to paste or use. Never

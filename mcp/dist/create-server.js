@@ -21184,7 +21184,7 @@ var operationalImpactSchema = external_exports.object({
   reason: boundedText
 }).strict();
 var promptReviewSchema = external_exports.object({
-  review_id: external_exports.string().min(1, "must be nonempty").max(200),
+  review_id: external_exports.string().min(1, "must be nonempty").max(200).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/, "must be a single-line opaque token"),
   version: external_exports.number().int().positive(),
   target: external_exports.enum(["chatgpt", "codex", "current-host"]),
   mode: external_exports.enum(["minimal", "balanced", "strict"]),
@@ -21358,9 +21358,33 @@ var prompt_review_default = `<!doctype html>
     (() => {
       'use strict';
       const MAX_PROMPT_CHARS = 50000;
+      const MAX_THREAD_RESUME_RETRIES = 1;
+      const THREAD_RESUME_ERROR_MARKERS = ['thread not found', 'needs_resume', 'no rollout found', 'not loaded'];
+      const REVIEW_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
       const output = window.openai && window.openai.toolOutput;
       const structured = output && output.structuredContent ? output.structuredContent : output;
+      const isValidReview = (candidate) => Boolean(
+        candidate
+        && typeof candidate === 'object'
+        && typeof candidate.review_id === 'string'
+        && candidate.review_id.length > 0
+        && candidate.review_id.length <= 200
+        && REVIEW_ID_PATTERN.test(candidate.review_id)
+        && Number.isInteger(candidate.version)
+        && candidate.version > 0
+        && typeof candidate.original_prompt === 'string'
+        && candidate.original_prompt.length > 0
+        && candidate.original_prompt.length <= MAX_PROMPT_CHARS
+        && typeof candidate.optimized_prompt === 'string'
+        && candidate.optimized_prompt.length > 0
+        && candidate.optimized_prompt.length <= MAX_PROMPT_CHARS
+      );
       let review = structured && structured.review;
+      if (!isValidReview(review)) review = null;
+      let mountedReviewIdentity = review ? { reviewId: review.review_id, version: review.version } : null;
+      let bridgeReady = false;
+      let legacyFallbackReady = false;
+      let appTornDown = false;
       const result = document.getElementById('result');
       const textarea = document.getElementById('optimized-prompt');
       const promptPreview = document.getElementById('optimized-prompt-preview');
@@ -21478,15 +21502,36 @@ var prompt_review_default = `<!doctype html>
         }
         return null;
       };
+      const mountReviewOnce = (incoming) => {
+        if (!isValidReview(incoming)) return false;
+        if (mountedReviewIdentity) return false;
+        review = incoming;
+        mountedReviewIdentity = { reviewId: incoming.review_id, version: incoming.version };
+        render();
+        if (!submitted && !appTornDown && (bridgeReady || (legacyFallbackReady && hasLegacyMessageBridge()))) setButtons(false);
+        return true;
+      };
       let nextRequestId = 1;
       const pendingRequests = new Map();
+      const isParentBridge = () => window.parent && window.parent !== window;
+      const hasLegacyMessageBridge = () => Boolean(window.openai && typeof window.openai.sendFollowUpMessage === 'function');
+      const rejectPendingRequests = (error) => {
+        pendingRequests.forEach(({ reject }) => reject(error));
+        pendingRequests.clear();
+      };
       const request = (method, params) => {
-        if (!(window.parent && window.parent !== window)) return Promise.reject(new Error('No shared UI bridge is available.'));
+        if (!isParentBridge()) return Promise.reject(new Error('No shared UI bridge is available.'));
+        if (appTornDown) return Promise.reject(new Error('The review app was torn down by the host.'));
+        if (method === 'ui/message') {
+          if (!bridgeReady) return Promise.reject(new Error('The UI bridge is not ready.'));
+        }
         const id = nextRequestId++;
         return new Promise((resolve, reject) => {
           const timeout = window.setTimeout(() => {
             pendingRequests.delete(id);
-            reject(new Error('The UI bridge did not respond.'));
+            const error = new Error('The UI bridge timed out.');
+            error.code = 'UI_BRIDGE_TIMEOUT';
+            reject(error);
           }, 5000);
           pendingRequests.set(id, {
             resolve: (value) => { window.clearTimeout(timeout); resolve(value); },
@@ -21501,26 +21546,75 @@ var prompt_review_default = `<!doctype html>
           }
         });
       };
-      window.addEventListener('message', (event) => {
-        if (!(window.parent && event.source === window.parent)) return;
+      const notify = (method, params = {}) => {
+        if (!isParentBridge()) throw new Error('No shared UI bridge is available.');
+        window.parent.postMessage({ jsonrpc: '2.0', method, params }, '*');
+      };
+      const setButtons = (disabled) => document.querySelectorAll('button').forEach((button) => { button.disabled = disabled; });
+      const handleMessage = (event) => {
+        if (!(isParentBridge() && event.source === window.parent)) return;
         const data = event && event.data;
         if (!data || typeof data !== 'object') return;
+        if (data.method === 'ui/resource-teardown') {
+          if (typeof data.id === 'number' || typeof data.id === 'string') {
+            try { window.parent.postMessage({ jsonrpc: '2.0', id: data.id, result: {} }, '*'); } catch (_) {}
+          }
+          appTornDown = true;
+          bridgeReady = false;
+          legacyFallbackReady = false;
+          rejectPendingRequests(new Error('The review app was torn down by the host.'));
+          setButtons(true);
+          window.removeEventListener('message', handleMessage);
+          result.textContent = 'The review app was closed by the host.';
+          result.className = 'error';
+          return;
+        }
         if (typeof data.id === 'number' && pendingRequests.has(data.id)) {
           const pending = pendingRequests.get(data.id);
           pendingRequests.delete(data.id);
           if (data.error) pending.reject(new Error(String(data.error.message || 'The UI bridge rejected the request.')));
+          else if (data.result && data.result.isError === true) {
+            const resultError = data.result.error;
+            const resultMessage = data.result.message || (resultError && resultError.message) || (resultError && resultError.text);
+            pending.reject(new Error(String(resultMessage || 'The UI bridge reported an error.')));
+          }
           else pending.resolve(data.result);
           return;
         }
+        if (appTornDown) return;
         if (data.method === 'ui/notifications/tool-input' || data.method === 'ui/notifications/tool-result') {
           const incoming = reviewFromParams(data.params);
-          if (incoming) { review = incoming; render(); }
+          mountReviewOnce(incoming);
         }
-      });
+      };
+      window.addEventListener('message', handleMessage);
+      const isTransientThreadResumeError = (error) => {
+        const message = String(error instanceof Error ? error.message : error).toLowerCase();
+        return THREAD_RESUME_ERROR_MARKERS.some((marker) => message.includes(marker));
+      };
+      const sendBridgeMessage = async (message) => {
+        try {
+          return await request('ui/message', { role: 'user', content: [{ type: 'text', text: message }] });
+        } catch (error) {
+          if (error && error.code === 'UI_BRIDGE_TIMEOUT') {
+            throw new Error('The UI bridge timed out; the action may have been received, so it was not retried.');
+          }
+          if (isTransientThreadResumeError(error)) {
+            throw new Error('The host is still resuming this thread. No review action was retried automatically; wait for the thread to finish loading, then check whether the action arrived before trying again.');
+          }
+          throw error;
+        }
+      };
       let submitted = false;
-      const setButtons = (disabled) => document.querySelectorAll('button').forEach((button) => { button.disabled = disabled; });
       const send = async (action) => {
         if (submitted || !review) return;
+        if (appTornDown) return;
+        if (!isValidReview(review)) { result.textContent = 'Review data is invalid; no review action was sent.'; result.className = 'error'; setButtons(true); return; }
+        const reviewSnapshot = {
+          reviewId: review.review_id,
+          version: review.version,
+          originalPrompt: review.original_prompt,
+        };
         const edited = textarea.value;
         if (edited.length > MAX_PROMPT_CHARS) { result.textContent = 'The optimized prompt is too long.'; result.className = 'error'; textarea.focus(); return; }
         const revisionRequest = revisionField.value;
@@ -21529,30 +21623,87 @@ var prompt_review_default = `<!doctype html>
         submitted = true; setButtons(true); result.textContent = 'Sending review action\u2026'; result.className = '';
         let message;
         if (action === 'cancel') {
-          message = 'RESTRUCTURE_ACTION: CANCEL\\nREVIEW_ID: ' + String(review.review_id);
+          message = 'RESTRUCTURE_ACTION: CANCEL\\nREVIEW_ID: ' + reviewSnapshot.reviewId;
         } else if (action === 'revision') {
-          message = 'RESTRUCTURE_ACTION: REQUEST_REVISION\\nREVIEW_ID: ' + String(review.review_id) + '\\nBASE_PROMPT_VERSION: ' + String(review.version) + '\\nREVISION_REQUEST_BEGIN\\n' + revisionRequest + '\\nREVISION_REQUEST_END';
+          message = 'RESTRUCTURE_ACTION: REQUEST_REVISION\\nREVIEW_ID: ' + reviewSnapshot.reviewId + '\\nBASE_PROMPT_VERSION: ' + String(reviewSnapshot.version) + '\\nREVISION_REQUEST_BEGIN\\n' + revisionRequest + '\\nREVISION_REQUEST_END';
         } else {
-          const prompt = action === 'original' ? String(review.original_prompt || '') : edited;
+          const prompt = action === 'original' ? reviewSnapshot.originalPrompt : edited;
           const hash = await utf8Hash(prompt);
-          message = action === 'original' ? 'RESTRUCTURE_ACTION: USE_ORIGINAL\\nREVIEW_ID: ' + String(review.review_id) + '\\nORIGINAL_REQUEST_SHA256: ' + hash : 'RESTRUCTURE_ACTION: APPROVE_AND_RUN\\nREVIEW_ID: ' + String(review.review_id) + '\\nPROMPT_VERSION: ' + String(review.version) + '\\nAPPROVED_PROMPT_SHA256: ' + hash + '\\nAPPROVED_PROMPT_BEGIN\\n' + prompt + '\\nAPPROVED_PROMPT_END';
+          message = action === 'original' ? 'RESTRUCTURE_ACTION: USE_ORIGINAL\\nREVIEW_ID: ' + reviewSnapshot.reviewId + '\\nORIGINAL_REQUEST_SHA256: ' + hash : 'RESTRUCTURE_ACTION: APPROVE_AND_RUN\\nREVIEW_ID: ' + reviewSnapshot.reviewId + '\\nPROMPT_VERSION: ' + String(reviewSnapshot.version) + '\\nAPPROVED_PROMPT_SHA256: ' + hash + '\\nAPPROVED_PROMPT_BEGIN\\n' + prompt + '\\nAPPROVED_PROMPT_END';
         }
         try {
-          if (window.parent && window.parent !== window) {
-            await request('ui/message', { role: 'user', content: [{ type: 'text', text: message }] });
-          } else if (window.openai && typeof window.openai.sendFollowUpMessage === 'function') {
+          if (isParentBridge() && bridgeReady) {
+            await sendBridgeMessage(message);
+          } else if (legacyFallbackReady && hasLegacyMessageBridge()) {
             await window.openai.sendFollowUpMessage({ prompt: message });
+          } else if (isParentBridge()) {
+            throw new Error('The UI bridge is not ready; no review action was sent.');
           } else { throw new Error('No supported review message bridge is available.'); }
           result.textContent = 'Review action sent.';
-        } catch (error) { submitted = false; setButtons(false); result.textContent = error instanceof Error ? error.message : 'Could not send review action.'; result.className = 'error'; }
+        } catch (error) {
+          if (appTornDown) return;
+          submitted = false;
+          setButtons(!(bridgeReady || (legacyFallbackReady && hasLegacyMessageBridge())));
+          result.textContent = error instanceof Error ? error.message : 'Could not send review action.';
+          result.className = 'error';
+        }
       };
       document.getElementById('approve').addEventListener('click', () => send('approve'));
       document.getElementById('revision').addEventListener('click', () => send('revision'));
       document.getElementById('original').addEventListener('click', () => send('original'));
       document.getElementById('cancel').addEventListener('click', () => send('cancel'));
       textarea.addEventListener('input', () => renderPromptPreview(textarea.value));
+      const initializeBridge = async () => {
+        let retryCount = 0;
+        while (!appTornDown) {
+          try {
+            await request('ui/initialize', {
+              protocolVersion: '2026-01-26',
+              appInfo: { name: 'restructure-review', version: '1.0.0' },
+              appCapabilities: { availableDisplayModes: ['inline'] },
+            });
+            if (appTornDown) return false;
+            bridgeReady = true;
+            notify('ui/notifications/initialized');
+            return true;
+          } catch (error) {
+            bridgeReady = false;
+            if (!isTransientThreadResumeError(error) || retryCount >= MAX_THREAD_RESUME_RETRIES) throw error;
+            retryCount += 1;
+            result.textContent = 'The host is still resuming this thread; retrying the UI bridge once.';
+            result.className = 'error';
+            await new Promise((resolve) => window.setTimeout(resolve, 250));
+          }
+        }
+        return false;
+      };
       render();
-      request('ui/initialize', { version: '1.0', capabilities: {} }).catch(() => {});
+      legacyFallbackReady = !isParentBridge() && hasLegacyMessageBridge();
+      setButtons(!review || !(bridgeReady || legacyFallbackReady));
+      if (isParentBridge()) {
+        initializeBridge().then((initialized) => {
+          if (initialized && !submitted && !appTornDown) {
+            setButtons(!review);
+            legacyFallbackReady = false;
+            result.textContent = '';
+            result.className = '';
+          }
+        }).catch((error) => {
+          if (appTornDown) return;
+          if (hasLegacyMessageBridge()) {
+            legacyFallbackReady = true;
+            if (!submitted) setButtons(!review);
+            result.textContent = 'The standard interactive bridge is unavailable; using the compatibility bridge.';
+            result.className = 'error';
+            return;
+          }
+          result.textContent = 'The interactive bridge is unavailable; use the complete text review. ' + String(error instanceof Error ? error.message : error);
+          result.className = 'error';
+        });
+      } else if (!hasLegacyMessageBridge()) {
+        result.textContent = 'No interactive bridge is available; use the complete text review.';
+        result.className = 'error';
+      }
     })();
   </script>
 </body>
